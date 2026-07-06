@@ -28,6 +28,9 @@ target/
 ### VS Code ###
 .vscode/
 
+### Personal notes ###
+NOTES.md
+
 ### Operating System Files ###
 Thumbs.db
 ehthumbs.db

@@ -1,0 +1,92 @@
+spring:
+  application:
+    name: replication-engine
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/replication_db
+    username: root
+    password: password
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+app:
+  kafka:
+    topic: nosql-replication
+    group-id: replication-consumer-group
+    concurrency: 3
+
+  replication:
+    envelope:
+      set-path: "header.tableName"
+      userkey-path: "header.uuid"
+      operation-path: "header.action"
+
+    target-schema:
+      table-name: "db_invoices"
+      invoice_id:
+        path: "header.uuid"
+        type: "VARCHAR(255)"
+      invoiceamount:
+        path: "invoice_amount"
+        type: "DECIMAL(20,6)"
+      vendor_name:
+        path: "vendor"
+        type: "VARCHAR(255)"
+      paid_paise:
+        path: "paid"
+        type: "BOOLEAN"
+      order_for:
+        path: "For_order"
+        type: "VARCHAR(255)"
+      column1:
+        path: "child.for_order"
+        type: "VARCHAR(255)"
+
+logging:
+  level:
+    com.replication: INFO
+    org.springframework.jdbc: DEBUG
+
+# Sample input JSON:
+# {
+#   "header": {
+#     "db": "dbs",
+#     "tableName": "invoices",
+#     "uuid": "INV-8877",
+#     "action": "insert"
+#   },
+#   "invoice_amount": 12000.50,
+#   "vendor": "Google LLC",
+#   "paid": true,
+#   "child": {
+#     "for_order": "orderid1"
+#   },
+#   "For_order": "parent_orderid1",
+#   "random_garbage_field": "ignore me"
+# }
+
+# Sample output SQL:
+# INSERT INTO db_invoices (
+#   invoice_id,
+#   invoiceamount,
+#   vendor_name,
+#   paid_paise,
+#   order_for,
+#   column1
+# )
+# VALUES (
+#   'INV-8877',
+#   12000.50,
+#   'Google LLC',
+#   true,
+#   'parent_orderid1',
+#   'orderid1'
+# )
+# ON DUPLICATE KEY UPDATE
+#   invoiceamount = 12000.50,
+#   vendor_name = 'Google LLC',
+#   paid_paise = true,
+#   order_for = 'parent_orderid1',
+#   column1 = 'orderid1'

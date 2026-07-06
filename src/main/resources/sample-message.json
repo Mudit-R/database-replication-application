@@ -1,0 +1,16 @@
+{
+  "header": {
+    "db": "dbsdaf",
+    "tableName": "invoicek",
+    "uuid": "INV-8869",
+    "action": "delete"
+  },
+  "invoice_amount": 12000.50,
+  "vendor": "f LLC",
+  "paid": true,
+  "child": {
+    "for_order": "orderid1"
+  },
+  "For_order": "parent_orderid1",
+  "random_garbage_field": "ignore me"
+}

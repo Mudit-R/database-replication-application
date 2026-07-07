@@ -32,7 +32,7 @@ The entry point. The single `@SpringBootApplication` annotation triggers Spring 
 Binds the `app.replication.*` section of `application.yml` into a typed Java object. Holds the field mapping config (which JSON path maps to which MySQL column) and envelope config (where to find the operation type and primary key in the message).
 
 **`SqlBuilder.java`**  
-Pure Java — no Spring, no database. Takes a parsed JSON message and the field-mapping config, resolves each field path, and produces a ready-to-run SQL statement. Handles insert/update as a MySQL upsert (`INSERT ... ON DUPLICATE KEY UPDATE`) and delete as a `DELETE WHERE`. Also has a `preview()` method that fills in the `?` placeholders for display purposes.
+This is a Java only file. Takes a parsed JSON message and the field-mapping config, resolves each field path, and produces a ready-to-run SQL statement. Handles insert/update as a MySQL upsert (`INSERT ... ON DUPLICATE KEY UPDATE`) and delete as a `DELETE WHERE`. Also has a `preview()` method that fills in the `?` placeholders for display purposes.
 
 **`ReplicationConsumer.java`**  
 The Kafka listener. Spring Kafka calls `onMessage()` for every message on the configured topic. It parses the JSON string, passes it to `SqlBuilder`, then runs the result against MySQL using `JdbcTemplate`. If a message fails for any reason it is logged and skipped so it doesn't block the rest of the queue.

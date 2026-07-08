@@ -2,6 +2,8 @@ package com.replication.demo;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.replication.app.SqlBuilder;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 
 import java.io.ByteArrayOutputStream;
@@ -25,6 +27,8 @@ import java.util.Map;
  *   mvn compile exec:java -Dexec.args="path/to/your-message.json"
  */
 public class DemoRunner {
+
+    private static final Logger log = LogManager.getLogger(DemoRunner.class);
 
     public static void main(String[] args) throws Exception {
         Map<String, Object> yaml = loadYaml();
@@ -53,7 +57,11 @@ public class DemoRunner {
         System.out.println("=================================================");
 
         try {
+            log.info("Building SQL from message...");
             SqlBuilder.Result result = SqlBuilder.build(json, operationPath, userKeyPath, targetSchema);
+
+            log.info("SQL built successfully — operation={}, table={}, pk={}",
+                    result.operation, result.tableName, result.primaryKeyColumn);
 
             System.out.println();
             System.out.println("Table:            " + result.tableName);
@@ -67,6 +75,7 @@ public class DemoRunner {
             System.out.println(result.sql);
             System.out.println("Parameter values, in order: " + result.parameters);
         } catch (Exception e) {
+            log.error("Could not build SQL from this message", e);
             System.out.println();
             System.out.println("Could not build SQL from this message: " + e.getMessage());
         }

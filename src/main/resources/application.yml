@@ -19,7 +19,7 @@ app:
 
   replication:
     envelope:
-      set-path: "header.tableName"
+      set-path: "header.tableName" #not being used for the sql generation currently
       userkey-path: "header.uuid"
       operation-path: "header.action"
 

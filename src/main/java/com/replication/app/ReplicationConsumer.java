@@ -28,11 +28,7 @@ public class ReplicationConsumer {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    @KafkaListener(
-            topics = "${app.kafka.topic}",
-            groupId = "${app.kafka.group-id}",
-            concurrency = "${app.kafka.concurrency}"
-    )
+    @KafkaListener(topics = "${app.kafka.topic}", groupId = "${app.kafka.group-id}", concurrency = "${app.kafka.concurrency}")
     public void onMessage(String message) {
         try {
             @SuppressWarnings("unchecked")
@@ -42,12 +38,10 @@ public class ReplicationConsumer {
                     json,
                     properties.getEnvelope().getOperationPath(),
                     properties.getEnvelope().getUserkeyPath(),
-                    properties.getTargetSchema()
-            );
+                    properties.getTargetSchema());
 
             jdbcTemplate.update(result.sql, result.parameters.toArray());
         } catch (Exception e) {
-            // Simple by design: log and move on so one bad message doesn't kill the consumer.
             System.err.println("Failed to process message: " + message);
             e.printStackTrace();
         }

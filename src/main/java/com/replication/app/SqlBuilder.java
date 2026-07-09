@@ -13,11 +13,12 @@ import java.util.regex.Matcher;
  * Turns one incoming JSON message into a ready-to-run SQL statement, based
  * on the target-schema mapping from application.yml.
  *
- * This class is plain Java on purpose - no Spring, no JDBC, no Kafka - so
+ * This class is made so that
  * it can be reused by both the live Kafka consumer (ReplicationConsumer)
  * and the standalone demo tool (DemoRunner).
  */
 public final class SqlBuilder {
+    /** To be set according to the NoSql's JSON message */
 
     private static final String INSERT_OPERATION = "insert";
     private static final String UPDATE_OPERATION = "update";

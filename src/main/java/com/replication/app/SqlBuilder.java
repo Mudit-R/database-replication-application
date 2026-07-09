@@ -1,5 +1,7 @@
 package com.replication.app;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -20,6 +22,8 @@ public final class SqlBuilder {
     private static final String INSERT_OPERATION = "insert";
     private static final String UPDATE_OPERATION = "update";
     private static final String DELETE_OPERATION = "delete";
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private SqlBuilder() {
     }
@@ -67,7 +71,7 @@ public final class SqlBuilder {
             @SuppressWarnings("unchecked")
             Map<String, Object> columnConfig = (Map<String, Object>) entry.getValue();
             String path = (String) columnConfig.get("path");
-            Object value = resolvePath(json, path);
+            Object value = flatten(resolvePath(json, path));
             columnValues.put(columnName, value);
 
             if (path.equals(userKeyPath)) {
@@ -124,6 +128,23 @@ public final class SqlBuilder {
             }
         }
         return current;
+    }
+
+    /**
+     * If the value is a nested object (Map) or array (List), serializes it to a
+     * JSON string so it can be stored in a plain TEXT/JSON database column.
+     * Simple values (String, Number, Boolean, null) are returned as-is.
+     */
+    static Object flatten(Object value) {
+        if (value instanceof Map || value instanceof List) {
+            try {
+                return MAPPER.writeValueAsString(value);
+            } catch (JsonProcessingException e) {
+                // Fall back to toString() if serialization somehow fails
+                return value.toString();
+            }
+        }
+        return value;
     }
 
     /**

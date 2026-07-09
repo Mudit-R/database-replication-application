@@ -60,20 +60,37 @@ public class DemoRunner {
             log.info("Building SQL from message...");
             SqlBuilder.Result result = SqlBuilder.build(json, operationPath, userKeyPath, targetSchema);
 
-            log.info("SQL built successfully — operation={}, table={}, pk={}",
+            log.info("SQL built successfully - operation={}, table={}, pk={}",
                     result.operation, result.tableName, result.primaryKeyColumn);
 
             System.out.println();
             System.out.println("Table:            " + result.tableName);
             System.out.println("Operation:        " + result.operation);
             System.out.println("Primary key col:  " + result.primaryKeyColumn);
-            System.out.println();
-            System.out.println("Generated SQL (readable, values filled in):");
-            System.out.println(SqlBuilder.preview(result.sql, result.parameters));
-            System.out.println();
-            System.out.println("Parameterized form (what actually runs against MySQL):");
-            System.out.println(result.sql);
-            System.out.println("Parameter values, in order: " + result.parameters);
+
+            if (result.insertSql != null) {
+                // Upsert: show both statements
+                System.out.println();
+                System.out.println("Step 1 - UPDATE (runs first):");
+                System.out.println(SqlBuilder.preview(result.sql, result.parameters));
+                System.out.println();
+                System.out.println("Step 2 - INSERT (runs only if Step 1 updated 0 rows):");
+                System.out.println(SqlBuilder.preview(result.insertSql, result.insertParameters));
+                System.out.println();
+                System.out.println("Parameterized UPDATE: " + result.sql);
+                System.out.println("Parameters:           " + result.parameters);
+                System.out.println();
+                System.out.println("Parameterized INSERT: " + result.insertSql);
+                System.out.println("Parameters:           " + result.insertParameters);
+            } else {
+                // Delete: single statement
+                System.out.println();
+                System.out.println("Generated SQL (readable):");
+                System.out.println(SqlBuilder.preview(result.sql, result.parameters));
+                System.out.println();
+                System.out.println("Parameterized form: " + result.sql);
+                System.out.println("Parameters:         " + result.parameters);
+            }
         } catch (Exception e) {
             log.error("Could not build SQL from this message", e);
             System.out.println();

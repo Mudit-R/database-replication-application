@@ -33,16 +33,28 @@ public final class SqlBuilder {
         public final String tableName;
         public final String operation;
         public final String primaryKeyColumn;
-        public final String sql;
-        public final List<Object> parameters;
+        public final String sql;                    // UPDATE for upsert, DELETE for delete
+        public final List<Object> parameters;       // params for sql
+        public final String insertSql;              // INSERT for upsert, null for delete
+        public final List<Object> insertParameters; // params for insertSql, null for delete
 
+        // Used for DELETE
         public Result(String tableName, String operation, String primaryKeyColumn,
                       String sql, List<Object> parameters) {
+            this(tableName, operation, primaryKeyColumn, sql, parameters, null, null);
+        }
+
+        // Used for UPSERT
+        public Result(String tableName, String operation, String primaryKeyColumn,
+                      String sql, List<Object> parameters,
+                      String insertSql, List<Object> insertParameters) {
             this.tableName = tableName;
             this.operation = operation;
             this.primaryKeyColumn = primaryKeyColumn;
             this.sql = sql;
             this.parameters = parameters;
+            this.insertSql = insertSql;
+            this.insertParameters = insertParameters;
         }
     }
 
@@ -90,24 +102,28 @@ public final class SqlBuilder {
         }
 
         if (INSERT_OPERATION.equalsIgnoreCase(operation) || UPDATE_OPERATION.equalsIgnoreCase(operation)) {
+
+            // Standard UPDATE - works on all RDBMS
+            StringBuilder setClause = new StringBuilder();
+            List<Object> updateParams = new ArrayList<>();
+            for (Map.Entry<String, Object> e : columnValues.entrySet()) {
+                if (e.getKey().equals(primaryKeyColumn)) continue;
+                if (setClause.length() > 0) setClause.append(", ");
+                setClause.append(e.getKey()).append(" = ?");
+                updateParams.add(e.getValue());
+            }
+            updateParams.add(columnValues.get(primaryKeyColumn)); // WHERE param goes last
+            String updateSql = "UPDATE " + tableName + " SET " + setClause
+                    + " WHERE " + primaryKeyColumn + " = ?";
+
+            // Standard INSERT - works on all RDBMS
             String columns = String.join(", ", columnValues.keySet());
             String placeholders = String.join(", ", Collections.nCopies(columnValues.size(), "?"));
+            String insertSql = "INSERT INTO " + tableName + " (" + columns + ") VALUES (" + placeholders + ")";
+            List<Object> insertParams = new ArrayList<>(columnValues.values());
 
-            StringBuilder updateClause = new StringBuilder();
-            for (String column : columnValues.keySet()) {
-                if (column.equals(primaryKeyColumn)) {
-                    continue;
-                }
-                if (updateClause.length() > 0) {
-                    updateClause.append(", ");
-                }
-                updateClause.append(column).append(" = VALUES(").append(column).append(")");
-            }
-
-            String sql = "INSERT INTO " + tableName + " (" + columns + ") VALUES (" + placeholders + ")"
-                    + " ON DUPLICATE KEY UPDATE " + updateClause;
-            List<Object> parameters = new ArrayList<>(columnValues.values());
-            return new Result(tableName, "UPSERT (insert/update)", primaryKeyColumn, sql, parameters);
+            return new Result(tableName, "UPSERT (insert/update)", primaryKeyColumn,
+                    updateSql, updateParams, insertSql, insertParams);
         }
 
         throw new IllegalArgumentException("Unknown operation '" + operation + "' found at path: " + operationPath);

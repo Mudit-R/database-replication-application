@@ -52,8 +52,6 @@ logging:
 # Sample input JSON:
 # {
 #   "header": {
-#     "db": "dbs",
-#     "tableName": "invoices",
 #     "uuid": "INV-8877",
 #     "action": "insert"
 #   },
@@ -61,32 +59,20 @@ logging:
 #   "vendor": "Google LLC",
 #   "paid": true,
 #   "child": {
-#     "for_order": "orderid1"
+#     "for_order": "orderid1",
+#     "address": {
+#       "city": "Mumbai",
+#       "state": "Maharashtra",
+#       "district": "Mumbai City"
+#     }
 #   },
-#   "For_order": "parent_orderid1",
-#   "random_garbage_field": "ignore me"
+#   "For_order": "parent_orderid1"
 # }
 
 # Sample output SQL:
-# INSERT INTO db_invoices (
-#   invoice_id,
-#   invoiceamount,
-#   vendor_name,
-#   paid_paise,
-#   order_for,
-#   column1
-# )
-# VALUES (
-#   'INV-8877',
-#   12000.50,
-#   'Google LLC',
-#   true,
-#   'parent_orderid1',
-#   'orderid1'
-# )
-# ON DUPLICATE KEY UPDATE
-#   invoiceamount = 12000.50,
-#   vendor_name = 'Google LLC',
-#   paid_paise = true,
-#   order_for = 'parent_orderid1',
-#   column1 = 'orderid1'
+#
+# Step 1 - UPDATE (runs first):
+# UPDATE db_invoices SET invoiceamount = 12000.5, vendor_name = 'Google LLC', paid_paise = true, order_for = 'parent_orderid1', column1 = 'orderid1', addr_city = 'Mumbai', addr_state = 'Maharashtra', addr_district = 'Mumbai City' WHERE invoice_id = 'INV-8877'
+#
+# Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+# INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, addr_city, addr_state, addr_district) VALUES ('INV-8877', 12000.5, 'Google LLC', true, 'parent_orderid1', 'orderid1', 'Mumbai', 'Maharashtra', 'Mumbai City')

@@ -1,0 +1,8 @@
+{
+  "header": { "uuid": "INV-008", "action": "insert" },
+  "invoice_amount": 99999999.999999,
+  "vendor": "Big Numbers Ltd",
+  "paid": true,
+  "For_order": "ORD-LARGE",
+  "child": { "for_order": "SUB-LARGE" }
+}

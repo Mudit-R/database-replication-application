@@ -1,0 +1,8 @@
+{
+  "header": { "uuid": "INV-002", "action": "insert" },
+  "invoice_amount": 1500.00,
+  "vendor": "Acme Corp",
+  "paid": false,
+  "For_order": "ORD-100",
+  "child": { "for_order": "ORD-100-A" }
+}

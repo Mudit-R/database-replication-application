@@ -1,0 +1,8 @@
+{
+  "header": { "uuid": "INV-012", "action": "INSERT" },
+  "invoice_amount": 2200.00,
+  "vendor": "Uppercase Action",
+  "paid": false,
+  "For_order": "ORD-UPPER",
+  "child": { "for_order": "SUB-UPPER" }
+}

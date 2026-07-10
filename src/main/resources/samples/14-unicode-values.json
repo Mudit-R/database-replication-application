@@ -1,0 +1,8 @@
+{
+  "header": { "uuid": "INV-013", "action": "insert" },
+  "invoice_amount": 8800.00,
+  "vendor": "Unicode Vendor \u20b9\u00e9\u4e2d\u6587",
+  "paid": true,
+  "For_order": "ORD-\u20b9-500",
+  "child": { "for_order": "SUB-UNICODE" }
+}

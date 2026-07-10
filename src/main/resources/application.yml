@@ -37,8 +37,12 @@ app:
         path: "For_order"
       column1:
         path: "child.for_order"
-      child_data:
-        path: "child"
+      addr_city:
+        path: "child.address.city"
+      addr_state:
+        path: "child.address.state"
+      addr_district:
+        path: "child.address.district"
 
 logging:
   level:

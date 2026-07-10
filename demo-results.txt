@@ -1,0 +1,548 @@
+﻿REPLICATION ENGINE - 15 DEMO SCENARIOS
+Generated: 2026-07-10 01:53:21
+============================================================
+
+============================================================
+SCENARIO: 01-simple-delete
+============================================================
+=================================================
+Input message:
+{
+  "header": {
+    "uuid": "INV-001",
+    "action": "delete"
+  }
+}
+=================================================
+2026-07-10 01:53:23 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:23 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=DELETE, table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        DELETE
+Primary key col:  invoice_id
+
+Generated SQL (readable):
+DELETE FROM db_invoices WHERE invoice_id = 'INV-001'
+
+Parameterized form: DELETE FROM db_invoices WHERE invoice_id = ?
+Parameters:         [INV-001]
+=================================================
+
+
+============================================================
+SCENARIO: 02-simple-insert
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-002", "action": "insert" },
+  "invoice_amount": 1500.00,
+  "vendor": "Acme Corp",
+  "paid": false,
+  "For_order": "ORD-100",
+  "child": { "for_order": "ORD-100-A" }
+}
+=================================================
+2026-07-10 01:53:24 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:24 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 1500.0, vendor_name = 'Acme Corp', paid_paise = false, order_for = 'ORD-100', column1 = 'ORD-100-A', child_data = '{"for_order":"ORD-100-A"}' WHERE invoice_id = 'INV-002'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-002', 1500.0, 'Acme Corp', false, 'ORD-100', 'ORD-100-A', '{"for_order":"ORD-100-A"}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [1500.0, Acme Corp, false, ORD-100, ORD-100-A, {"for_order":"ORD-100-A"}, INV-002]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-002, 1500.0, Acme Corp, false, ORD-100, ORD-100-A, {"for_order":"ORD-100-A"}]
+=================================================
+
+
+============================================================
+SCENARIO: 03-simple-update
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-002", "action": "update" },
+  "invoice_amount": 1800.00,
+  "vendor": "Acme Corp",
+  "paid": true,
+  "For_order": "ORD-100",
+  "child": { "for_order": "ORD-100-A" }
+}
+=================================================
+2026-07-10 01:53:25 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:25 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 1800.0, vendor_name = 'Acme Corp', paid_paise = true, order_for = 'ORD-100', column1 = 'ORD-100-A', child_data = '{"for_order":"ORD-100-A"}' WHERE invoice_id = 'INV-002'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-002', 1800.0, 'Acme Corp', true, 'ORD-100', 'ORD-100-A', '{"for_order":"ORD-100-A"}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [1800.0, Acme Corp, true, ORD-100, ORD-100-A, {"for_order":"ORD-100-A"}, INV-002]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-002, 1800.0, Acme Corp, true, ORD-100, ORD-100-A, {"for_order":"ORD-100-A"}]
+=================================================
+
+
+============================================================
+SCENARIO: 04-nested-object
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-003", "action": "insert" },
+  "invoice_amount": 9999.99,
+  "vendor": "Nested Corp",
+  "paid": true,
+  "For_order": "ORD-200",
+  "child": {
+    "for_order": "ORD-200-A",
+    "address": {
+      "street": "42 Baker Street",
+      "city": "London",
+      "country": "UK"
+    }
+  }
+}
+=================================================
+2026-07-10 01:53:27 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:27 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 9999.99, vendor_name = 'Nested Corp', paid_paise = true, order_for = 'ORD-200', column1 = 'ORD-200-A', child_data = '{"for_order":"ORD-200-A","address":{"street":"42 Baker Street","city":"London","country":"UK"}}' WHERE invoice_id = 'INV-003'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-003', 9999.99, 'Nested Corp', true, 'ORD-200', 'ORD-200-A', '{"for_order":"ORD-200-A","address":{"street":"42 Baker Street","city":"London","country":"UK"}}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [9999.99, Nested Corp, true, ORD-200, ORD-200-A, {"for_order":"ORD-200-A","address":{"street":"42 Baker Street","city":"London","country":"UK"}}, INV-003]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-003, 9999.99, Nested Corp, true, ORD-200, ORD-200-A, {"for_order":"ORD-200-A","address":{"street":"42 Baker Street","city":"London","country":"UK"}}]
+=================================================
+
+
+============================================================
+SCENARIO: 05-array-in-child
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-004", "action": "insert" },
+  "invoice_amount": 3200.00,
+  "vendor": "Array Vendor",
+  "paid": false,
+  "For_order": "ORD-300",
+  "child": {
+    "for_order": "ORD-300-A",
+    "tags": ["urgent", "international", "bulk"]
+  }
+}
+=================================================
+2026-07-10 01:53:29 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:29 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 3200.0, vendor_name = 'Array Vendor', paid_paise = false, order_for = 'ORD-300', column1 = 'ORD-300-A', child_data = '{"for_order":"ORD-300-A","tags":["urgent","international","bulk"]}' WHERE invoice_id = 'INV-004'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-004', 3200.0, 'Array Vendor', false, 'ORD-300', 'ORD-300-A', '{"for_order":"ORD-300-A","tags":["urgent","international","bulk"]}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [3200.0, Array Vendor, false, ORD-300, ORD-300-A, {"for_order":"ORD-300-A","tags":["urgent","international","bulk"]}, INV-004]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-004, 3200.0, Array Vendor, false, ORD-300, ORD-300-A, {"for_order":"ORD-300-A","tags":["urgent","international","bulk"]}]
+=================================================
+
+
+============================================================
+SCENARIO: 06-complex-child
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-005", "action": "insert" },
+  "invoice_amount": 7500.00,
+  "vendor": "Complex Co",
+  "paid": true,
+  "For_order": "ORD-400",
+  "child": {
+    "for_order": "ORD-400-A",
+    "tags": ["express", "fragile"],
+    "address": { "city": "Mumbai", "pin": 400001 },
+    "contacts": [
+      { "name": "Raj", "phone": "9999999999" },
+      { "name": "Priya", "phone": "8888888888" }
+    ]
+  }
+}
+=================================================
+2026-07-10 01:53:31 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:31 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 7500.0, vendor_name = 'Complex Co', paid_paise = true, order_for = 'ORD-400', column1 = 'ORD-400-A', child_data = '{"for_order":"ORD-400-A","tags":["express","fragile"],"address":{"city":"Mumbai","pin":400001},"contacts":[{"name":"Raj","phone":"9999999999"},{"name":"Priya","phone":"8888888888"}]}' WHERE invoice_id = 'INV-005'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-005', 7500.0, 'Complex Co', true, 'ORD-400', 'ORD-400-A', '{"for_order":"ORD-400-A","tags":["express","fragile"],"address":{"city":"Mumbai","pin":400001},"contacts":[{"name":"Raj","phone":"9999999999"},{"name":"Priya","phone":"8888888888"}]}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [7500.0, Complex Co, true, ORD-400, ORD-400-A, {"for_order":"ORD-400-A","tags":["express","fragile"],"address":{"city":"Mumbai","pin":400001},"contacts":[{"name":"Raj","phone":"9999999999"},{"name":"Priya","phone":"8888888888"}]}, INV-005]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-005, 7500.0, Complex Co, true, ORD-400, ORD-400-A, {"for_order":"ORD-400-A","tags":["express","fragile"],"address":{"city":"Mumbai","pin":400001},"contacts":[{"name":"Raj","phone":"9999999999"},{"name":"Priya","phone":"8888888888"}]}]
+=================================================
+
+
+============================================================
+SCENARIO: 07-special-characters
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-006", "action": "insert" },
+  "invoice_amount": 100.00,
+  "vendor": "O'Reilly & Sons / \"Tech\" LLC",
+  "paid": false,
+  "For_order": "ORD-IT'S-COMPLEX/001",
+  "child": { "for_order": "sub-order#1" }
+}
+=================================================
+2026-07-10 01:53:32 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:32 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 100.0, vendor_name = 'O''Reilly & Sons / "Tech" LLC', paid_paise = false, order_for = 'ORD-IT''S-COMPLEX/001', column1 = 'sub-order#1', child_data = '{"for_order":"sub-order#1"}' WHERE invoice_id = 'INV-006'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-006', 100.0, 'O''Reilly & Sons / "Tech" LLC', false, 'ORD-IT''S-COMPLEX/001', 'sub-order#1', '{"for_order":"sub-order#1"}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [100.0, O'Reilly & Sons / "Tech" LLC, false, ORD-IT'S-COMPLEX/001, sub-order#1, {"for_order":"sub-order#1"}, INV-006]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-006, 100.0, O'Reilly & Sons / "Tech" LLC, false, ORD-IT'S-COMPLEX/001, sub-order#1, {"for_order":"sub-order#1"}]
+=================================================
+
+
+============================================================
+SCENARIO: 08-missing-fields
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-007", "action": "insert" },
+  "invoice_amount": 0.01
+}
+=================================================
+2026-07-10 01:53:35 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:35 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 0.01, vendor_name = NULL, paid_paise = NULL, order_for = NULL, column1 = NULL, child_data = NULL WHERE invoice_id = 'INV-007'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-007', 0.01, NULL, NULL, NULL, NULL, NULL)
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [0.01, null, null, null, null, null, INV-007]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-007, 0.01, null, null, null, null, null]
+=================================================
+
+
+============================================================
+SCENARIO: 09-large-decimal
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-008", "action": "insert" },
+  "invoice_amount": 99999999.999999,
+  "vendor": "Big Numbers Ltd",
+  "paid": true,
+  "For_order": "ORD-LARGE",
+  "child": { "for_order": "SUB-LARGE" }
+}
+=================================================
+2026-07-10 01:53:37 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:37 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 9.9999999999999E7, vendor_name = 'Big Numbers Ltd', paid_paise = true, order_for = 'ORD-LARGE', column1 = 'SUB-LARGE', child_data = '{"for_order":"SUB-LARGE"}' WHERE invoice_id = 'INV-008'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-008', 9.9999999999999E7, 'Big Numbers Ltd', true, 'ORD-LARGE', 'SUB-LARGE', '{"for_order":"SUB-LARGE"}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [9.9999999999999E7, Big Numbers Ltd, true, ORD-LARGE, SUB-LARGE, {"for_order":"SUB-LARGE"}, INV-008]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-008, 9.9999999999999E7, Big Numbers Ltd, true, ORD-LARGE, SUB-LARGE, {"for_order":"SUB-LARGE"}]
+=================================================
+
+
+============================================================
+SCENARIO: 10-zero-amount
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-009", "action": "insert" },
+  "invoice_amount": 0,
+  "vendor": "Zero Invoice",
+  "paid": false,
+  "For_order": "ORD-ZERO",
+  "child": { "for_order": "SUB-ZERO" }
+}
+=================================================
+2026-07-10 01:53:38 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:38 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 0, vendor_name = 'Zero Invoice', paid_paise = false, order_for = 'ORD-ZERO', column1 = 'SUB-ZERO', child_data = '{"for_order":"SUB-ZERO"}' WHERE invoice_id = 'INV-009'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-009', 0, 'Zero Invoice', false, 'ORD-ZERO', 'SUB-ZERO', '{"for_order":"SUB-ZERO"}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [0, Zero Invoice, false, ORD-ZERO, SUB-ZERO, {"for_order":"SUB-ZERO"}, INV-009]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-009, 0, Zero Invoice, false, ORD-ZERO, SUB-ZERO, {"for_order":"SUB-ZERO"}]
+=================================================
+
+
+============================================================
+SCENARIO: 11-delete-extra-fields
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-010", "action": "delete" },
+  "invoice_amount": 5000,
+  "vendor": "Delete With Extra Fields",
+  "random1": "ignored",
+  "random2": 12345,
+  "random3": { "key": "value" }
+}
+=================================================
+2026-07-10 01:53:39 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:39 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=DELETE, table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        DELETE
+Primary key col:  invoice_id
+
+Generated SQL (readable):
+DELETE FROM db_invoices WHERE invoice_id = 'INV-010'
+
+Parameterized form: DELETE FROM db_invoices WHERE invoice_id = ?
+Parameters:         [INV-010]
+=================================================
+
+
+============================================================
+SCENARIO: 12-update-with-nested
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-011", "action": "update" },
+  "invoice_amount": 4500.75,
+  "vendor": "Update Vendor",
+  "paid": true,
+  "For_order": "ORD-UPD",
+  "child": {
+    "for_order": "SUB-UPD",
+    "metadata": { "source": "mongodb", "version": 3 }
+  }
+}
+=================================================
+2026-07-10 01:53:41 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:41 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 4500.75, vendor_name = 'Update Vendor', paid_paise = true, order_for = 'ORD-UPD', column1 = 'SUB-UPD', child_data = '{"for_order":"SUB-UPD","metadata":{"source":"mongodb","version":3}}' WHERE invoice_id = 'INV-011'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-011', 4500.75, 'Update Vendor', true, 'ORD-UPD', 'SUB-UPD', '{"for_order":"SUB-UPD","metadata":{"source":"mongodb","version":3}}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [4500.75, Update Vendor, true, ORD-UPD, SUB-UPD, {"for_order":"SUB-UPD","metadata":{"source":"mongodb","version":3}}, INV-011]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-011, 4500.75, Update Vendor, true, ORD-UPD, SUB-UPD, {"for_order":"SUB-UPD","metadata":{"source":"mongodb","version":3}}]
+=================================================
+
+
+============================================================
+SCENARIO: 13-uppercase-action
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-012", "action": "INSERT" },
+  "invoice_amount": 2200.00,
+  "vendor": "Uppercase Action",
+  "paid": false,
+  "For_order": "ORD-UPPER",
+  "child": { "for_order": "SUB-UPPER" }
+}
+=================================================
+2026-07-10 01:53:42 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:42 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 2200.0, vendor_name = 'Uppercase Action', paid_paise = false, order_for = 'ORD-UPPER', column1 = 'SUB-UPPER', child_data = '{"for_order":"SUB-UPPER"}' WHERE invoice_id = 'INV-012'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-012', 2200.0, 'Uppercase Action', false, 'ORD-UPPER', 'SUB-UPPER', '{"for_order":"SUB-UPPER"}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [2200.0, Uppercase Action, false, ORD-UPPER, SUB-UPPER, {"for_order":"SUB-UPPER"}, INV-012]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-012, 2200.0, Uppercase Action, false, ORD-UPPER, SUB-UPPER, {"for_order":"SUB-UPPER"}]
+=================================================
+
+
+============================================================
+SCENARIO: 14-unicode-values
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-013", "action": "insert" },
+  "invoice_amount": 8800.00,
+  "vendor": "Unicode Vendor \u20b9\u00e9\u4e2d\u6587",
+  "paid": true,
+  "For_order": "ORD-\u20b9-500",
+  "child": { "for_order": "SUB-UNICODE" }
+}
+=================================================
+2026-07-10 01:53:44 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:44 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 8800.0, vendor_name = 'Unicode Vendor ?Θ??', paid_paise = true, order_for = 'ORD-?-500', column1 = 'SUB-UNICODE', child_data = '{"for_order":"SUB-UNICODE"}' WHERE invoice_id = 'INV-013'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-013', 8800.0, 'Unicode Vendor ?Θ??', true, 'ORD-?-500', 'SUB-UNICODE', '{"for_order":"SUB-UNICODE"}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [8800.0, Unicode Vendor ?Θ??, true, ORD-?-500, SUB-UNICODE, {"for_order":"SUB-UNICODE"}, INV-013]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-013, 8800.0, Unicode Vendor ?Θ??, true, ORD-?-500, SUB-UNICODE, {"for_order":"SUB-UNICODE"}]
+=================================================
+
+
+============================================================
+SCENARIO: 15-full-complex
+============================================================
+=================================================
+Input message:
+{
+  "header": { "uuid": "INV-014", "action": "insert" },
+  "invoice_amount": 5500.00,
+  "vendor": "Full Complex Vendor",
+  "paid": true,
+  "For_order": "ORD-FULL",
+  "child": {
+    "for_order": "SUB-FULL",
+    "tags": ["priority-1", "bulk", "pre-paid"],
+    "address": {
+      "street": "Plot 7, Sector 21",
+      "city": "Noida",
+      "state": "UP",
+      "pin": 201301
+    },
+    "contacts": [
+      { "name": "Alice", "role": "billing" },
+      { "name": "Bob", "role": "shipping" }
+    ],
+    "notes": "Handle with care: O'Brien's order"
+  },
+  "extra_field_1": "ignored",
+  "extra_field_2": 9999,
+  "extra_field_3": { "junk": true }
+}
+=================================================
+2026-07-10 01:53:45 [main] INFO  com.replication.demo.DemoRunner - Building SQL from message...
+2026-07-10 01:53:45 [main] INFO  com.replication.demo.DemoRunner - SQL built successfully - operation=UPSERT (insert/update), table=db_invoices, pk=invoice_id
+
+Table:            db_invoices
+Operation:        UPSERT (insert/update)
+Primary key col:  invoice_id
+
+Step 1 - UPDATE (runs first):
+UPDATE db_invoices SET invoiceamount = 5500.0, vendor_name = 'Full Complex Vendor', paid_paise = true, order_for = 'ORD-FULL', column1 = 'SUB-FULL', child_data = '{"for_order":"SUB-FULL","tags":["priority-1","bulk","pre-paid"],"address":{"street":"Plot 7, Sector 21","city":"Noida","state":"UP","pin":201301},"contacts":[{"name":"Alice","role":"billing"},{"name":"Bob","role":"shipping"}],"notes":"Handle with care: O''Brien''s order"}' WHERE invoice_id = 'INV-014'
+
+Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES ('INV-014', 5500.0, 'Full Complex Vendor', true, 'ORD-FULL', 'SUB-FULL', '{"for_order":"SUB-FULL","tags":["priority-1","bulk","pre-paid"],"address":{"street":"Plot 7, Sector 21","city":"Noida","state":"UP","pin":201301},"contacts":[{"name":"Alice","role":"billing"},{"name":"Bob","role":"shipping"}],"notes":"Handle with care: O''Brien''s order"}')
+
+Parameterized UPDATE: UPDATE db_invoices SET invoiceamount = ?, vendor_name = ?, paid_paise = ?, order_for = ?, column1 = ?, child_data = ? WHERE invoice_id = ?
+Parameters:           [5500.0, Full Complex Vendor, true, ORD-FULL, SUB-FULL, {"for_order":"SUB-FULL","tags":["priority-1","bulk","pre-paid"],"address":{"street":"Plot 7, Sector 21","city":"Noida","state":"UP","pin":201301},"contacts":[{"name":"Alice","role":"billing"},{"name":"Bob","role":"shipping"}],"notes":"Handle with care: O'Brien's order"}, INV-014]
+
+Parameterized INSERT: INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, child_data) VALUES (?, ?, ?, ?, ?, ?, ?)
+Parameters:           [INV-014, 5500.0, Full Complex Vendor, true, ORD-FULL, SUB-FULL, {"for_order":"SUB-FULL","tags":["priority-1","bulk","pre-paid"],"address":{"street":"Plot 7, Sector 21","city":"Noida","state":"UP","pin":201301},"contacts":[{"name":"Alice","role":"billing"},{"name":"Bob","role":"shipping"}],"notes":"Handle with care: O'Brien's order"}]
+=================================================
+

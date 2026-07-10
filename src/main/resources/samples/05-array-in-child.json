@@ -1,0 +1,11 @@
+{
+  "header": { "uuid": "INV-004", "action": "insert" },
+  "invoice_amount": 3200.00,
+  "vendor": "Array Vendor",
+  "paid": false,
+  "For_order": "ORD-300",
+  "child": {
+    "for_order": "ORD-300-A",
+    "tags": ["urgent", "international", "bulk"]
+  }
+}

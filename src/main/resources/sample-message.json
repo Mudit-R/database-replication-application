@@ -13,7 +13,8 @@
     "tags": ["urgent", "international"],
     "address": {
       "street": "123 Main St",
-      "city": "Delhi"
+      "city": "Delhi",
+      "state": "Delhi NCR"
     }
   },
   "For_order": "parent_orderid1",

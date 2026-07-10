@@ -1,0 +1,8 @@
+{
+  "header": { "uuid": "INV-006", "action": "insert" },
+  "invoice_amount": 100.00,
+  "vendor": "O'Reilly & Sons / \"Tech\" LLC",
+  "paid": false,
+  "For_order": "ORD-IT'S-COMPLEX/001",
+  "child": { "for_order": "sub-order#1" }
+}

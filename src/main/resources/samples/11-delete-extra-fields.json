@@ -1,0 +1,8 @@
+{
+  "header": { "uuid": "INV-010", "action": "delete" },
+  "invoice_amount": 5000,
+  "vendor": "Delete With Extra Fields",
+  "random1": "ignored",
+  "random2": 12345,
+  "random3": { "key": "value" }
+}

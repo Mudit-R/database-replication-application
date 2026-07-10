@@ -1,0 +1,25 @@
+{
+  "header": { "uuid": "INV-014", "action": "insert" },
+  "invoice_amount": 5500.00,
+  "vendor": "Full Complex Vendor",
+  "paid": true,
+  "For_order": "ORD-FULL",
+  "child": {
+    "for_order": "SUB-FULL",
+    "tags": ["priority-1", "bulk", "pre-paid"],
+    "address": {
+      "street": "Plot 7, Sector 21",
+      "city": "Noida",
+      "state": "UP",
+      "pin": 201301
+    },
+    "contacts": [ 
+      { "name": "Alice", "role": "billing" },
+      { "name": "Bob", "role": "shipping" }
+    ],
+    "notes": "Handle with care: O'Brien's order"
+  },
+  "extra_field_1": "ignored",
+  "extra_field_2": 9999,
+  "extra_field_3": { "junk": true }
+}

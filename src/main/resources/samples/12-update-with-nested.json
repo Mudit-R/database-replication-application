@@ -1,0 +1,11 @@
+{
+  "header": { "uuid": "INV-011", "action": "update" },
+  "invoice_amount": 4500.75,
+  "vendor": "Update Vendor",
+  "paid": true,
+  "For_order": "ORD-UPD",
+  "child": {
+    "for_order": "SUB-UPD",
+    "metadata": { "source": "mongodb", "version": 3 }
+  }
+}

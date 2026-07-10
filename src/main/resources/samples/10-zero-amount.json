@@ -1,0 +1,8 @@
+{
+  "header": { "uuid": "INV-009", "action": "insert" },
+  "invoice_amount": 0,
+  "vendor": "Zero Invoice",
+  "paid": false,
+  "For_order": "ORD-ZERO",
+  "child": { "for_order": "SUB-ZERO" }
+}

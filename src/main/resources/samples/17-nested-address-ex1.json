@@ -1,0 +1,15 @@
+{
+  "header": { "uuid": "INV-ADDR-001", "action": "insert" },
+  "invoice_amount": 3500.00,
+  "vendor": "Alpha Retailers",
+  "paid": true,
+  "For_order": "ORD-N1",
+  "child": {
+    "for_order": "SUB-N1",
+    "address": {
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "district": "Mumbai City"
+    }
+  }
+}

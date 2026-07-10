@@ -1,0 +1,15 @@
+{
+  "header": { "uuid": "INV-003", "action": "insert" },
+  "invoice_amount": 9999.99,
+  "vendor": "Nested Corp",
+  "paid": true,
+  "For_order": "ORD-200",
+  "child": {
+    "for_order": "ORD-200-A",
+    "address": {
+      "street": "42 Baker Street",
+      "city": "London",
+      "country": "UK"
+    }
+  }
+}

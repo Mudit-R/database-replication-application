@@ -1,0 +1,8 @@
+{
+  "header": { "uuid": "INV-COMPLEX-STR", "action": "insert" },
+  "invoice_amount": 5000,
+  "vendor": "Test Vendor",
+  "paid": true,
+  "For_order": "{\"abc\":\"val_abc\"}",
+  "child": { "for_order": "{\"nested\":\"stringified\",\"num\":42}" }
+}

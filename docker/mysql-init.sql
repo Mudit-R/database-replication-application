@@ -24,3 +24,15 @@ CREATE TABLE IF NOT EXISTS db_audit_log (
     created_by  VARCHAR(255),
     PRIMARY KEY (log_id)
 );
+
+-- Table 3: Enterprise vendor summary - only populated when vendor_type = 'enterprise'.
+-- Demonstrates conditional routing: the same message hits different tables
+-- depending on field values.
+CREATE TABLE IF NOT EXISTS db_vendor_summary (
+    summary_id   VARCHAR(255) NOT NULL,
+    vendor_name  VARCHAR(255),
+    vendor_type  VARCHAR(100),
+    total_amount DECIMAL(20,6),
+    region       VARCHAR(255),
+    PRIMARY KEY (summary_id)
+);

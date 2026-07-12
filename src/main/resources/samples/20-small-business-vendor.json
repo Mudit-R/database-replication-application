@@ -1,0 +1,19 @@
+{
+  "header": {
+    "uuid": "INV-SMB-001",
+    "action": "insert"
+  },
+  "invoice_amount": 1200.00,
+  "vendor": "Local Traders Co",
+  "vendor_type": "small-business",
+  "paid": false,
+  "For_order": "ORD-S-001",
+  "child": {
+    "for_order": "SUB-S-001",
+    "address": {
+      "city": "Delhi",
+      "state": "Delhi NCR",
+      "district": "Central Delhi"
+    }
+  }
+}

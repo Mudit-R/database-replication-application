@@ -1,0 +1,19 @@
+{
+  "header": {
+    "uuid": "INV-ENT-001",
+    "action": "insert"
+  },
+  "invoice_amount": 95000.00,
+  "vendor": "Tata Consultancy Services",
+  "vendor_type": "enterprise",
+  "paid": true,
+  "For_order": "ORD-E-001",
+  "child": {
+    "for_order": "SUB-E-001",
+    "address": {
+      "city": "Mumbai",
+      "state": "Maharashtra",
+      "district": "Mumbai City"
+    }
+  }
+}

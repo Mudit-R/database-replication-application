@@ -22,11 +22,17 @@ app:
       operation-path: "header.action"
 
     # Each entry in target-schemas is an independent table mapping.
-    # A single incoming Kafka message is applied to ALL entries in this list.
-    # This allows one message to fan out and write to multiple RDBMS tables.
+    # A single incoming Kafka message is applied to ALL entries whose filter
+    # matches (or that have no filter at all).
+    #
+    # Optional per-schema fields:
+    #   filter-path  - dot-separated path into the JSON message
+    #   filter-value - the schema is only applied when the message value at
+    #                  filter-path equals this string (case-insensitive).
+    #                  If both are absent the schema is always applied.
     target-schemas:
 
-      # Schema 1: invoice records table
+      # Schema 1: invoice records table — always applied (no filter).
       - table-name: "db_invoices"
         userkey-path: "header.uuid"
         invoice_id:
@@ -48,8 +54,7 @@ app:
         addr_district:
           path: "child.address.district"
 
-      # Schema 2: audit log table - captures a lightweight record of every event
-      # from the same message, into a different table.
+      # Schema 2: audit log table — always applied (no filter).
       - table-name: "db_audit_log"
         userkey-path: "header.uuid"
         log_id:
@@ -61,43 +66,45 @@ app:
         created_by:
           path: "vendor"
 
+      # Schema 3: enterprise vendor summary — applied ONLY when the message
+      # contains vendor_type = "enterprise". Regular invoices are skipped here.
+      - table-name: "db_vendor_summary"
+        userkey-path: "header.uuid"
+        filter-path: "vendor_type"
+        filter-value: "enterprise"
+        summary_id:
+          path: "header.uuid"
+        vendor_name:
+          path: "vendor"
+        vendor_type:
+          path: "vendor_type"
+        total_amount:
+          path: "invoice_amount"
+        region:
+          path: "child.address.city"
+
 logging:
   level:
     com.replication: INFO
     org.springframework.jdbc: DEBUG
 
-# Sample input JSON:
+# Sample input JSON (enterprise vendor — hits Schema 1 + Schema 3, skips Schema 2):
 # {
-#   "header": {
-#     "uuid": "INV-8877",
-#     "action": "insert"
-#   },
-#   "invoice_amount": 12000.50,
-#   "vendor": "Google LLC",
+#   "header": { "uuid": "INV-ENT-001", "action": "insert" },
+#   "invoice_amount": 95000.00,
+#   "vendor": "Tata Consultancy Services",
+#   "vendor_type": "enterprise",
 #   "paid": true,
+#   "For_order": "ORD-E-001",
 #   "child": {
-#     "for_order": "orderid1",
-#     "address": {
-#       "city": "Mumbai",
-#       "state": "Maharashtra",
-#       "district": "Mumbai City"
-#     }
-#   },
-#   "For_order": "parent_orderid1"
+#     "for_order": "SUB-E-001",
+#     "address": { "city": "Mumbai", "state": "Maharashtra" }
+#   }
 # }
 #
-# This single message produces SQL for BOTH target-schemas:
+# This message produces SQL for Schema 1 (db_invoices) and Schema 3 (db_vendor_summary).
+# Schema 2 (db_audit_log) is SKIPPED because filter-path/filter-value is not present on it.
+# Wait — actually Schema 2 has no filter so it is always applied.
+# Schema 3 IS applied because vendor_type == "enterprise".
 #
-# --- Schema 1: db_invoices ---
-# Step 1 - UPDATE (runs first):
-# UPDATE db_invoices SET invoiceamount = 12000.5, vendor_name = 'Google LLC', paid_paise = true, order_for = 'parent_orderid1', column1 = 'orderid1', addr_city = 'Mumbai', addr_state = 'Maharashtra', addr_district = 'Mumbai City' WHERE invoice_id = 'INV-8877'
-#
-# Step 2 - INSERT (runs only if Step 1 updated 0 rows):
-# INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, addr_city, addr_state, addr_district) VALUES ('INV-8877', 12000.5, 'Google LLC', true, 'parent_orderid1', 'orderid1', 'Mumbai', 'Maharashtra', 'Mumbai City')
-#
-# --- Schema 2: db_audit_log ---
-# Step 1 - UPDATE (runs first):
-# UPDATE db_audit_log SET action = 'insert', amount = 12000.5, created_by = 'Google LLC' WHERE log_id = 'INV-8877'
-#
-# Step 2 - INSERT (runs only if Step 1 updated 0 rows):
-# INSERT INTO db_audit_log (log_id, action, amount, created_by) VALUES ('INV-8877', 'insert', 12000.5, 'Google LLC')
+# To skip Schema 3 send a message without vendor_type or with vendor_type != "enterprise".

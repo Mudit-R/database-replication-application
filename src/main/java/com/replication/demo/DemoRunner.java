@@ -56,14 +56,23 @@ public class DemoRunner {
         System.out.println(jsonText.trim());
         System.out.println("=================================================");
 
-        // Fan out: print SQL for every configured target schema.
+        // Fan out: print SQL for every schema whose filter matches the message.
         for (int i = 0; i < targetSchemas.size(); i++) {
             Map<String, Object> schema = targetSchemas.get(i);
             String tableName = (String) schema.get("table-name");
-            String userKeyPath = (String) schema.get("userkey-path");
 
             System.out.println();
             System.out.println("--- Schema " + (i + 1) + ": " + tableName + " ---");
+
+            if (!schemaApplies(json, schema)) {
+                String fp = (String) schema.get("filter-path");
+                String fv = (String) schema.get("filter-value");
+                System.out.println("[SKIPPED] filter-path='" + fp + "' filter-value='" + fv
+                        + "' did not match this message");
+                continue;
+            }
+
+            String userKeyPath = (String) schema.get("userkey-path");
 
             try {
                 log.info("Building SQL for schema '{}' ...", tableName);
@@ -77,7 +86,6 @@ public class DemoRunner {
                 System.out.println("Primary key col:  " + result.primaryKeyColumn);
 
                 if (result.insertSql != null) {
-                    // Upsert: show both statements
                     System.out.println();
                     System.out.println("Step 1 - UPDATE (runs first):");
                     System.out.println(SqlBuilder.preview(result.sql, result.parameters));
@@ -91,7 +99,6 @@ public class DemoRunner {
                     System.out.println("Parameterized INSERT: " + result.insertSql);
                     System.out.println("Parameters:           " + result.insertParameters);
                 } else {
-                    // Delete: single statement
                     System.out.println();
                     System.out.println("Generated SQL (readable):");
                     System.out.println(SqlBuilder.preview(result.sql, result.parameters));
@@ -107,6 +114,17 @@ public class DemoRunner {
 
         System.out.println();
         System.out.println("=================================================");
+    }
+
+    /** Returns true when this schema has no filter, or when the filter matches the message. */
+    private static boolean schemaApplies(Map<String, Object> json, Map<String, Object> schema) {
+        String filterPath  = (String) schema.get("filter-path");
+        String filterValue = (String) schema.get("filter-value");
+        if (filterPath == null || filterValue == null) {
+            return true;
+        }
+        Object actual = SqlBuilder.resolvePath(json, filterPath);
+        return actual != null && filterValue.equalsIgnoreCase(String.valueOf(actual));
     }
 
     private static Map<String, Object> loadYaml() throws Exception {

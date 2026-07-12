@@ -19,30 +19,47 @@ app:
 
   replication:
     envelope:
-      set-path: "header.tableName" #not being used for the sql generation currently
-      userkey-path: "header.uuid"
       operation-path: "header.action"
 
-    target-schema:
-      table-name: "db_invoices"
-      invoice_id:
-        path: "header.uuid"
-      invoiceamount:
-        path: "invoice_amount"
-      vendor_name:
-        path: "vendor"
-      paid_paise:
-        path: "paid"
-      order_for:
-        path: "For_order"
-      column1:
-        path: "child.for_order"
-      addr_city:
-        path: "child.address.city"
-      addr_state:
-        path: "child.address.state"
-      addr_district:
-        path: "child.address.district"
+    # Each entry in target-schemas is an independent table mapping.
+    # A single incoming Kafka message is applied to ALL entries in this list.
+    # This allows one message to fan out and write to multiple RDBMS tables.
+    target-schemas:
+
+      # Schema 1: invoice records table
+      - table-name: "db_invoices"
+        userkey-path: "header.uuid"
+        invoice_id:
+          path: "header.uuid"
+        invoiceamount:
+          path: "invoice_amount"
+        vendor_name:
+          path: "vendor"
+        paid_paise:
+          path: "paid"
+        order_for:
+          path: "For_order"
+        column1:
+          path: "child.for_order"
+        addr_city:
+          path: "child.address.city"
+        addr_state:
+          path: "child.address.state"
+        addr_district:
+          path: "child.address.district"
+
+      # Schema 2: audit log table - captures a lightweight record of every event
+      # from the same message, into a different table.
+      - table-name: "db_audit_log"
+        userkey-path: "header.uuid"
+        log_id:
+          path: "header.uuid"
+        action:
+          path: "header.action"
+        amount:
+          path: "invoice_amount"
+        created_by:
+          path: "vendor"
 
 logging:
   level:
@@ -68,11 +85,19 @@ logging:
 #   },
 #   "For_order": "parent_orderid1"
 # }
-
-# Sample output SQL:
 #
+# This single message produces SQL for BOTH target-schemas:
+#
+# --- Schema 1: db_invoices ---
 # Step 1 - UPDATE (runs first):
 # UPDATE db_invoices SET invoiceamount = 12000.5, vendor_name = 'Google LLC', paid_paise = true, order_for = 'parent_orderid1', column1 = 'orderid1', addr_city = 'Mumbai', addr_state = 'Maharashtra', addr_district = 'Mumbai City' WHERE invoice_id = 'INV-8877'
 #
 # Step 2 - INSERT (runs only if Step 1 updated 0 rows):
 # INSERT INTO db_invoices (invoice_id, invoiceamount, vendor_name, paid_paise, order_for, column1, addr_city, addr_state, addr_district) VALUES ('INV-8877', 12000.5, 'Google LLC', true, 'parent_orderid1', 'orderid1', 'Mumbai', 'Maharashtra', 'Mumbai City')
+#
+# --- Schema 2: db_audit_log ---
+# Step 1 - UPDATE (runs first):
+# UPDATE db_audit_log SET action = 'insert', amount = 12000.5, created_by = 'Google LLC' WHERE log_id = 'INV-8877'
+#
+# Step 2 - INSERT (runs only if Step 1 updated 0 rows):
+# INSERT INTO db_audit_log (log_id, action, amount, created_by) VALUES ('INV-8877', 'insert', 12000.5, 'Google LLC')

@@ -3,22 +3,23 @@ package com.replication.app;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 
 /**
  * Binds the "app.replication.*" section of application.yml.
  *
- * targetSchema is kept as a raw Map because it mixes one plain value
- * ("table-name") with several nested {path, type} column definitions.
- * The consumer pulls "table-name" out separately and treats every
- * other entry as a column mapping.
+ * targetSchemas is a list so that one incoming Kafka message can be applied
+ * to multiple RDBMS tables. Each entry in the list is an independent
+ * target-schema block with its own table-name, userkey-path, and column
+ * mappings. The consumer iterates the list and executes SQL for each one.
  */
 @Component
 @ConfigurationProperties(prefix = "app.replication")
 public class ReplicationProperties {
 
     private Envelope envelope;
-    private Map<String, Object> targetSchema;
+    private List<Map<String, Object>> targetSchemas;
 
     public Envelope getEnvelope() {
         return envelope;
@@ -28,34 +29,16 @@ public class ReplicationProperties {
         this.envelope = envelope;
     }
 
-    public Map<String, Object> getTargetSchema() {
-        return targetSchema;
+    public List<Map<String, Object>> getTargetSchemas() {
+        return targetSchemas;
     }
 
-    public void setTargetSchema(Map<String, Object> targetSchema) {
-        this.targetSchema = targetSchema;
+    public void setTargetSchemas(List<Map<String, Object>> targetSchemas) {
+        this.targetSchemas = targetSchemas;
     }
 
     public static class Envelope {
-        private String setPath;
-        private String userkeyPath;
         private String operationPath;
-
-        public String getSetPath() {
-            return setPath;
-        }
-
-        public void setSetPath(String setPath) {
-            this.setPath = setPath;
-        }
-
-        public String getUserkeyPath() {
-            return userkeyPath;
-        }
-
-        public void setUserkeyPath(String userkeyPath) {
-            this.userkeyPath = userkeyPath;
-        }
 
         public String getOperationPath() {
             return operationPath;

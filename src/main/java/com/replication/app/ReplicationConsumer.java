@@ -11,12 +11,16 @@ import java.util.Map;
 
 /**
  * Consumes NoSQL change-event messages from Kafka and replicates them into
- * the existing MySQL table described by app.replication.target-schema.
+ * one or more RDBMS tables described by app.replication.target-schemas.
+ *
+ * Each entry in target-schemas is processed independently against the same
+ * incoming message. This means a single Kafka message can fan out and write
+ * to multiple tables in one step.
  *
  * All the actual mapping/SQL-building logic lives in SqlBuilder so it can
  * be reused by the standalone demo tool (see com.replication.demo.DemoRunner).
- * This class's only job is: read the message, hand it to SqlBuilder, run
- * the result against the database.
+ * This class's only job is: read the message, hand it to SqlBuilder for each
+ * schema, run the result against the database.
  */
 @Component
 public class ReplicationConsumer {
@@ -39,28 +43,38 @@ public class ReplicationConsumer {
             @SuppressWarnings("unchecked")
             Map<String, Object> json = objectMapper.readValue(message, Map.class);
 
-            SqlBuilder.Result result = SqlBuilder.build(
-                    json,
-                    properties.getEnvelope().getOperationPath(),
-                    properties.getEnvelope().getUserkeyPath(),
-                    properties.getTargetSchema());
+            String operationPath = properties.getEnvelope().getOperationPath();
 
-            if (result.insertSql != null) {
-                // Upsert: try UPDATE first
-                int rowsUpdated = jdbcTemplate.update(result.sql, result.parameters.toArray());
-                log.info("UPDATE affected {} row(s) on table '{}'", rowsUpdated, result.tableName);
-                if (rowsUpdated == 0) {
-                    // Row didn't exist yet, INSERT it
-                    jdbcTemplate.update(result.insertSql, result.insertParameters.toArray());
-                    log.info("No existing row found — INSERT executed for key '{}'", result.primaryKeyColumn);
-                }
-            } else {
-                // DELETE
-                jdbcTemplate.update(result.sql, result.parameters.toArray());
-                log.info("DELETE executed on table '{}'", result.tableName);
+            // Fan out: apply the same message to every configured target schema.
+            for (Map<String, Object> schema : properties.getTargetSchemas()) {
+                String tableName = (String) schema.get("table-name");
+                String userKeyPath = (String) schema.get("userkey-path");
+
+                log.info("Processing schema for table '{}'", tableName);
+
+                SqlBuilder.Result result = SqlBuilder.build(json, operationPath, userKeyPath, schema);
+                executeResult(result);
             }
+
         } catch (Exception e) {
             log.error("Failed to process message: {}", message, e);
+        }
+    }
+
+    private void executeResult(SqlBuilder.Result result) {
+        if (result.insertSql != null) {
+            // Upsert: try UPDATE first
+            int rowsUpdated = jdbcTemplate.update(result.sql, result.parameters.toArray());
+            log.info("UPDATE affected {} row(s) on table '{}'", rowsUpdated, result.tableName);
+            if (rowsUpdated == 0) {
+                // Row didn't exist yet, INSERT it
+                jdbcTemplate.update(result.insertSql, result.insertParameters.toArray());
+                log.info("No existing row found — INSERT executed for key '{}'", result.primaryKeyColumn);
+            }
+        } else {
+            // DELETE
+            jdbcTemplate.update(result.sql, result.parameters.toArray());
+            log.info("DELETE executed on table '{}'", result.tableName);
         }
     }
 }

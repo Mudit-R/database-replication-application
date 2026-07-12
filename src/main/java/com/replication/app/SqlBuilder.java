@@ -77,7 +77,8 @@ public final class SqlBuilder {
 
         for (Map.Entry<String, Object> entry : targetSchema.entrySet()) {
             String columnName = entry.getKey();
-            if (columnName.equals("table-name")) {
+            // Skip plain string metadata fields (e.g. "table-name", "userkey-path")
+            if (!(entry.getValue() instanceof Map)) {
                 continue;
             }
 

@@ -1,69 +1,62 @@
-Subject: Task 2 Config Design - Schema Normalization & Multi-Table Splitting (for Monday review)
+Subject: Task 2 - Schema Normalization: Sample Input and Output
 
 Hi,
 
-Below is the proposed configuration plan for Task 2 before I start any coding.
-Let me know if the approach looks right and we can go through it on Monday.
+Below is a clean walkthrough of how a single incoming order message splits
+across three relational tables simultaneously. This is the e-commerce example
+we discussed.
 
 ---
 
-SUMMARY
+HOW IT WORKS
 
-The replication engine currently maps one incoming message to one row in one table.
-Task 2 requires it to split a single complex message (like an e-commerce order) across
-multiple normalized RDBMS tables at the same time.
+The config (application.yml) defines a list of target-schemas. Each schema
+maps to one RDBMS table. When a message arrives on Kafka, the engine checks
+every schema in the list:
+
+  - filter-path / filter-value  Controls which schemas apply to which messages.
+                                An order message only triggers order schemas.
+                                An invoice message only triggers invoice schemas.
+
+  - source-array                If a schema has this field, the engine iterates
+                                that array in the message and writes one row per
+                                element instead of one row for the whole message.
+
+  - pk-source: "generated"      Auto-generates a composite primary key for child
+                                rows: <parent_id>-<array_index>
 
 ---
 
-THE E-COMMERCE EXAMPLE
-
-Input message (arrives on the Kafka topic):
+INPUT MESSAGE (sent to Kafka topic: nosql-replication)
 
 {
-  "header": { "uuid": "ORD-001", "action": "insert" },
+  "header": {
+    "uuid": "ORD-001",
+    "action": "insert",
+    "type": "order"
+  },
   "customer_name": "John Doe",
   "total_amount": 1024.00,
+  "total_items": 3,
   "status": "confirmed",
   "items": [
-    { "sku": "LAPTOP-01", "qty": 1, "price": 999.00 },
-    { "sku": "MOUSE-01",  "qty": 2, "price": 12.50  }
+    { "sku": "LAPTOP-01",  "qty": 1, "price": 999.00 },
+    { "sku": "MOUSE-01",   "qty": 2, "price": 12.50  },
+    { "sku": "USB-HUB-01", "qty": 1, "price": 24.99  }
   ]
 }
 
-This single message must produce rows in three tables:
-
-Table 1: orders (one row per message)
-  order_id | customer_name | total_amount | status
-  ORD-001  | John Doe      | 1024.00      | confirmed
-
-Table 2: order_items (one row per element in the items array)
-  item_id      | order_id | sku        | qty | price
-  ORD-001-0    | ORD-001  | LAPTOP-01  | 1   | 999.00
-  ORD-001-1    | ORD-001  | MOUSE-01   | 2   | 12.50
-
-Table 3: order_audit (lightweight log, one row per message)
-  log_id  | action | written_by
-  ORD-001 | insert | John Doe
-
 ---
 
-PROPOSED CONFIG CHANGE
-
-The current config already supports writing to multiple tables using a
-target-schemas list. The only new concept needed is one optional field
-per schema called source-array.
-
-  - If source-array is not set: schema works as today (one row per message)
-  - If source-array is set: the engine iterates each element of that array
-    and writes one row per element. Column paths are checked against the
-    array element first, then fall back to the top-level message.
-
-Example (application.yml):
+CONFIG (relevant section from application.yml)
 
     target-schemas:
 
+      # Schema 3: orders — one row per message (no source-array)
       - table-name: "orders"
         userkey-path: "header.uuid"
+        filter-path: "header.type"
+        filter-value: "order"
         order_id:
           path: "header.uuid"
         customer_name:
@@ -73,56 +66,130 @@ Example (application.yml):
         status:
           path: "status"
 
+      # Schema 4: order_items — one row per element in items[]
       - table-name: "order_items"
         userkey-path: "header.uuid"
-        source-array: "items"           # new field — iterate this array
+        filter-path: "header.type"
+        filter-value: "order"
+        source-array: "items"           <-- iterates the items array
         item_id:
           path: "header.uuid"
-          pk-source: "generated"        # auto-generates ORD-001-0, ORD-001-1
+          pk-source: "generated"        <-- auto-generates ORD-001-0, ORD-001-1 etc.
         order_id:
-          path: "header.uuid"           # falls back to top-level message
+          path: "header.uuid"           <-- top-level fallback
         sku:
-          path: "sku"                   # resolved per array element
+          path: "sku"                   <-- resolved per array element
         qty:
           path: "qty"
         price:
           path: "price"
 
+      # Schema 5: order_audit — one row per message (no source-array)
       - table-name: "order_audit"
         userkey-path: "header.uuid"
+        filter-path: "header.type"
+        filter-value: "order"
         log_id:
           path: "header.uuid"
         action:
           path: "header.action"
         written_by:
           path: "customer_name"
+        item_count:
+          path: "total_items"
 
 ---
 
-WHAT CHANGES IN THE CODE (no code written yet)
+OUTPUT — SQL EXECUTED
 
-  - application.yml      Add source-array and pk-source fields to relevant schemas
-  - SqlBuilder.java      Add buildAll() that returns one Result per array element
-                         (if no source-array, returns a single-element list as before)
-  - ReplicationConsumer  Call buildAll() and execute each result
-  - DemoRunner           Same change for the preview tool
-  - mysql-init.sql       Add orders, order_items, order_audit table definitions
+The engine generates and runs the following SQL statements from that one message:
 
-Total new code is approximately 30-40 lines. Everything else is a loop swap.
-Existing invoice mapping is not affected.
+-- Table 1: orders (1 row)
+
+UPDATE orders
+  SET customer_name = 'John Doe', total_amount = 1024.0, status = 'confirmed'
+  WHERE order_id = 'ORD-001';
+
+INSERT INTO orders (order_id, customer_name, total_amount, status)
+  VALUES ('ORD-001', 'John Doe', 1024.0, 'confirmed');
+  -- INSERT only runs if UPDATE affected 0 rows (new record)
+
+
+-- Table 2: order_items (3 rows — one per element in items[])
+
+UPDATE order_items
+  SET order_id = 'ORD-001', sku = 'LAPTOP-01', qty = 1, price = 999.0
+  WHERE item_id = 'ORD-001-0';
+
+INSERT INTO order_items (item_id, order_id, sku, qty, price)
+  VALUES ('ORD-001-0', 'ORD-001', 'LAPTOP-01', 1, 999.0);
 
 ---
 
-OPEN QUESTIONS FOR MONDAY
+UPDATE order_items
+  SET order_id = 'ORD-001', sku = 'MOUSE-01', qty = 2, price = 12.5
+  WHERE item_id = 'ORD-001-1';
 
-1. Should the item primary key always be <parent_uuid>-<index> (e.g. ORD-001-0),
-   or should the format be configurable?
+INSERT INTO order_items (item_id, order_id, sku, qty, price)
+  VALUES ('ORD-001-1', 'ORD-001', 'MOUSE-01', 2, 12.5);
 
-2. If the items array is empty, should the engine skip silently or raise an error?
+---
 
-3. For a DELETE on the parent message, should the engine also delete the child rows
-   in order_items, or leave that to the database foreign key constraints?
+UPDATE order_items
+  SET order_id = 'ORD-001', sku = 'USB-HUB-01', qty = 1, price = 24.99
+  WHERE item_id = 'ORD-001-2';
 
-Let me know your thoughts and I will start coding once we have aligned on Monday.
+INSERT INTO order_items (item_id, order_id, sku, qty, price)
+  VALUES ('ORD-001-2', 'ORD-001', 'USB-HUB-01', 1, 24.99);
+
+
+-- Table 3: order_audit (1 row)
+
+UPDATE order_audit
+  SET action = 'insert', written_by = 'John Doe', item_count = 3
+  WHERE log_id = 'ORD-001';
+
+INSERT INTO order_audit (log_id, action, written_by, item_count)
+  VALUES ('ORD-001', 'insert', 'John Doe', 3);
+
+---
+
+OUTPUT — FINAL DATABASE STATE
+
+SELECT * FROM orders;
+
+  order_id | customer_name | total_amount | status
+  ORD-001  | John Doe      | 1024.000000  | confirmed
+
+
+SELECT * FROM order_items;
+
+  item_id     | order_id | sku        | qty | price
+  ORD-001-0   | ORD-001  | LAPTOP-01  | 1   | 999.000000
+  ORD-001-1   | ORD-001  | MOUSE-01   | 2   | 12.500000
+  ORD-001-2   | ORD-001  | USB-HUB-01 | 1   | 24.990000
+
+
+SELECT * FROM order_audit;
+
+  log_id  | action | written_by | item_count
+  ORD-001 | insert | John Doe   | 3
+
+
+NOTE: The invoice schemas (db_invoices, db_audit_log) were skipped entirely
+because the message had header.type = "order", not "invoice".
+
+---
+
+SUMMARY
+
+  1 Kafka message  -->  5 SQL statements  -->  3 tables updated  -->  5 total rows
+
+  Table         Rows Written  Reason
+  orders        1             One row per message (no source-array)
+  order_items   3             source-array: "items" — one row per item in the array
+  order_audit   1             One row per message (no source-array)
+  db_invoices   0             SKIPPED — header.type did not match filter-value: invoice
+  db_audit_log  0             SKIPPED — header.type did not match filter-value: invoice
 
 Thanks

@@ -91,7 +91,73 @@ INSERT INTO order_items (item_id, order_id, sku, qty, price)
 INSERT INTO order_audit (log_id, action, written_by, item_count)
   VALUES ('ORD-001', 'insert', 'John Doe', 3)
 
-**Target table schemas:**
+
+**Schema config (from application.yml) that drives this:**
+
+```yaml
+target-schemas:
+
+  # Schema 1: orders -- one row per message, no array iteration
+  - table-name: "orders"
+    userkey-path: "header.uuid"
+    filter-topic: "nosql-orders"
+    filter-path: "header.type"
+    filter-value: "order"
+    required-paths:
+      - "header.uuid"
+      - "customer_name"
+      - "total_amount"
+    order_id:
+      path: "header.uuid"
+    customer_name:
+      path: "customer_name"
+    total_amount:
+      path: "total_amount"
+    status:
+      path: "status"
+
+  # Schema 2: order_items -- source-array iterates items[], one row per element
+  - table-name: "order_items"
+    userkey-path: "header.uuid"
+    filter-topic: "nosql-orders"
+    filter-path: "header.type"
+    filter-value: "order"
+    source-array: "items"           # iterate this array -- one row per element
+    required-paths:
+      - "header.uuid"
+      - "items"
+    item_id:
+      path: "header.uuid"
+      pk-source: "generated"        # auto-generates ORD-001-0, ORD-001-1, ORD-001-2
+    order_id:
+      path: "header.uuid"           # not on the element -- falls back to top-level message
+    sku:
+      path: "sku"                   # resolved from each array element
+    qty:
+      path: "qty"
+    price:
+      path: "price"
+
+  # Schema 3: order_audit -- one row per message, no array iteration
+  - table-name: "order_audit"
+    userkey-path: "header.uuid"
+    filter-topic: "nosql-orders"
+    filter-path: "header.type"
+    filter-value: "order"
+    required-paths:
+      - "header.uuid"
+      - "customer_name"
+    log_id:
+      path: "header.uuid"
+    action:
+      path: "header.action"
+    written_by:
+      path: "customer_name"
+    item_count:
+      path: "total_items"
+```
+
+**Target table schemas (what the RDBMS tables look like):**
 
 ```sql
 -- Table 1: orders

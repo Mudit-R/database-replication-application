@@ -1,4 +1,4 @@
-# database-replication-application
+﻿# database-replication-application
 
 A Spring Boot service that listens to multiple Kafka topics simultaneously and mirrors change events into any JDBC-compatible relational database (MySQL, PostgreSQL, SQL Server, Oracle, etc.).
 
@@ -90,6 +90,37 @@ INSERT INTO order_items (item_id, order_id, sku, qty, price)
 -- Table 3: order_audit (1 row — lightweight log)
 INSERT INTO order_audit (log_id, action, written_by, item_count)
   VALUES ('ORD-001', 'insert', 'John Doe', 3)
+
+**Target table schemas:**
+
+```sql
+-- Table 1: orders
+CREATE TABLE orders (
+    order_id      VARCHAR(255) NOT NULL,
+    customer_name VARCHAR(255),
+    total_amount  DECIMAL(20,6),
+    status        VARCHAR(50),
+    PRIMARY KEY (order_id)
+);
+
+-- Table 2: order_items -- one row per element in items[]
+CREATE TABLE order_items (
+    item_id   VARCHAR(255) NOT NULL,
+    order_id  VARCHAR(255),
+    sku       VARCHAR(255),
+    qty       INT,
+    price     DECIMAL(20,6),
+    PRIMARY KEY (item_id)
+);
+
+-- Table 3: order_audit
+CREATE TABLE order_audit (
+    log_id     VARCHAR(255) NOT NULL,
+    action     VARCHAR(50),
+    written_by VARCHAR(255),
+    item_count INT,
+    PRIMARY KEY (log_id)
+);
 ```
 
 **Result: 1 message → 5 SQL statements → 3 tables → 5 rows written**

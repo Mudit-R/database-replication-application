@@ -45,7 +45,7 @@ public class ReplicationConsumer {
                 String tableName = (String) schema.get("table-name");
 
                 if (!schemaApplies(json, schema, topic)) {
-                    log.info("Schema '{}' skipped — filter did not match", tableName);
+                    log.info("Schema '{}' skipped — filter did not match or required path was missing", tableName);
                     continue;
                 }
 
@@ -88,12 +88,28 @@ public class ReplicationConsumer {
         if (filterTopic != null && !filterTopic.equalsIgnoreCase(topic)) {
             return false;
         }
+        
         String filterPath  = (String) schema.get("filter-path");
         String filterValue = (String) schema.get("filter-value");
-        if (filterPath == null || filterValue == null) {
-            return true;
+        if (filterPath != null && filterValue != null) {
+            Object actual = SqlBuilder.resolvePath(json, filterPath);
+            if (actual == null || !filterValue.equalsIgnoreCase(String.valueOf(actual))) {
+                return false;
+            }
         }
-        Object actual = SqlBuilder.resolvePath(json, filterPath);
-        return actual != null && filterValue.equalsIgnoreCase(String.valueOf(actual));
+
+        // Format Recognition layer: validate presence of required paths
+        @SuppressWarnings("unchecked")
+        List<String> requiredPaths = (List<String>) schema.get("required-paths");
+        if (requiredPaths != null) {
+            for (String path : requiredPaths) {
+                if (SqlBuilder.resolvePath(json, path) == null) {
+                    log.info("Schema '{}' skipped — required path '{}' is missing or null", schema.get("table-name"), path);
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }

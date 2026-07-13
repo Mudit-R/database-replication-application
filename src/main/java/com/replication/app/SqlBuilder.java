@@ -10,15 +10,15 @@ import java.util.Map;
 import java.util.regex.Matcher;
 
 /**
- * Turns one incoming JSON message into a ready-to-run SQL statement, based
- * on the target-schema mapping from application.yml.
+ * Turns one incoming JSON message into one or more ready-to-run SQL statements,
+ * based on the target-schema mapping from application.yml.
  *
- * This class is made so that
- * it can be reused by both the live Kafka consumer (ReplicationConsumer)
- * and the standalone demo tool (DemoRunner).
+ * Two entry points:
+ *   build()    - single result, for schemas with no source-array (unchanged behaviour)
+ *   buildAll() - list of results; iterates source-array if present, otherwise
+ *                delegates to build() and returns a single-element list.
  */
 public final class SqlBuilder {
-    /** To be set according to the NoSql's JSON message */
 
     private static final String INSERT_OPERATION = "insert";
     private static final String UPDATE_OPERATION = "update";
@@ -29,7 +29,7 @@ public final class SqlBuilder {
     private SqlBuilder() {
     }
 
-    /** Everything you'd want to know about the statement that was generated. */
+    /** Everything you'd want to know about one generated SQL statement. */
     public static class Result {
         public final String tableName;
         public final String operation;
@@ -59,42 +59,137 @@ public final class SqlBuilder {
         }
     }
 
+    // -------------------------------------------------------------------------
+    // Public API
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns one SQL result for a schema that has no source-array.
+     * Kept for backwards compatibility — delegates to buildAll() internally.
+     */
     public static Result build(Map<String, Object> json,
-                                String operationPath,
-                                String userKeyPath,
-                                Map<String, Object> targetSchema) {
+                               String operationPath,
+                               String userKeyPath,
+                               Map<String, Object> targetSchema) {
+        List<Result> all = buildAll(json, operationPath, userKeyPath, targetSchema);
+        if (all.isEmpty()) {
+            throw new IllegalStateException("buildAll returned empty list for non-array schema");
+        }
+        return all.get(0);
+    }
+
+    /**
+     * Main entry point.
+     *
+     * If the schema has no source-array: returns a single-element list (one row).
+     * If the schema has source-array:    iterates every element of that array and
+     *   returns one Result per element. Column paths are resolved against each
+     *   element first; if missing, they fall back to the top-level message.
+     *   Columns with pk-source: "generated" get an auto key of <parent_uuid>-<index>.
+     */
+    public static List<Result> buildAll(Map<String, Object> json,
+                                        String operationPath,
+                                        String userKeyPath,
+                                        Map<String, Object> targetSchema) {
+
+        String sourceArrayPath = (String) targetSchema.get("source-array");
+
+        if (sourceArrayPath == null) {
+            // No array — build exactly one result from the top-level message
+            return Collections.singletonList(buildSingle(json, json, -1, operationPath, userKeyPath, targetSchema));
+        }
+
+        // Array mode — iterate each element
+        Object arrayObj = resolvePath(json, sourceArrayPath);
+        if (!(arrayObj instanceof List)) {
+            // Array missing or empty — skip silently
+            return Collections.emptyList();
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Object> array = (List<Object>) arrayObj;
+
+        List<Result> results = new ArrayList<>();
+        for (int i = 0; i < array.size(); i++) {
+            Object elem = array.get(i);
+            @SuppressWarnings("unchecked")
+            Map<String, Object> element = (elem instanceof Map)
+                    ? (Map<String, Object>) elem
+                    : Collections.emptyMap();
+            results.add(buildSingle(json, element, i, operationPath, userKeyPath, targetSchema));
+        }
+        return results;
+    }
+
+    // -------------------------------------------------------------------------
+    // Private helpers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Builds one SQL Result.
+     *
+     * @param topLevel  the full incoming JSON message (used for operation, fallback paths)
+     * @param context   the object to resolve column paths against first
+     *                  (equals topLevel for non-array schemas; equals the array element
+     *                   for array schemas)
+     * @param index     position of this element in the source array (-1 if not array mode)
+     */
+    @SuppressWarnings("unchecked")
+    private static Result buildSingle(Map<String, Object> topLevel,
+                                      Map<String, Object> context,
+                                      int index,
+                                      String operationPath,
+                                      String userKeyPath,
+                                      Map<String, Object> targetSchema) {
 
         String tableName = (String) targetSchema.get("table-name");
 
-        Object rawOperation = resolvePath(json, operationPath);
+        Object rawOperation = resolvePath(topLevel, operationPath);
         if (rawOperation == null) {
             throw new IllegalArgumentException("No value found at operation-path: " + operationPath);
         }
         String operation = String.valueOf(rawOperation);
+
+        // Parent UUID — used for generated keys
+        String parentUuid = String.valueOf(resolvePath(topLevel, userKeyPath));
 
         LinkedHashMap<String, Object> columnValues = new LinkedHashMap<>();
         String primaryKeyColumn = null;
 
         for (Map.Entry<String, Object> entry : targetSchema.entrySet()) {
             String columnName = entry.getKey();
-            // Skip plain string metadata fields (e.g. "table-name", "userkey-path")
+            // Skip plain string metadata fields (table-name, userkey-path, source-array, filter-*)
             if (!(entry.getValue() instanceof Map)) {
                 continue;
             }
 
-            @SuppressWarnings("unchecked")
             Map<String, Object> columnConfig = (Map<String, Object>) entry.getValue();
             String path = (String) columnConfig.get("path");
-            Object value = flatten(resolvePath(json, path));
-            columnValues.put(columnName, value);
+            Object value;
 
-            if (path.equals(userKeyPath)) {
+            if ("generated".equals(columnConfig.get("pk-source"))) {
+                // Auto-generate composite key: <parent_uuid>-<array_index>
+                value = parentUuid + "-" + index;
                 primaryKeyColumn = columnName;
+            } else {
+                // Resolve from context (array element) first, then fall back to top-level
+                value = resolvePath(context, path);
+                if (value == null) {
+                    value = resolvePath(topLevel, path);
+                }
+                value = flatten(value);
+
+                if (path.equals(userKeyPath) && primaryKeyColumn == null) {
+                    primaryKeyColumn = columnName;
+                }
             }
+
+            columnValues.put(columnName, value);
         }
 
         if (primaryKeyColumn == null) {
-            throw new IllegalStateException("No target-schema column maps to userkey-path: " + userKeyPath);
+            throw new IllegalStateException(
+                    "No target-schema column maps to userkey-path: " + userKeyPath);
         }
 
         if (DELETE_OPERATION.equalsIgnoreCase(operation)) {
@@ -105,7 +200,7 @@ public final class SqlBuilder {
 
         if (INSERT_OPERATION.equalsIgnoreCase(operation) || UPDATE_OPERATION.equalsIgnoreCase(operation)) {
 
-            // Standard UPDATE - works on all RDBMS
+            // Standard UPDATE — works on all RDBMS
             StringBuilder setClause = new StringBuilder();
             List<Object> updateParams = new ArrayList<>();
             for (Map.Entry<String, Object> e : columnValues.entrySet()) {
@@ -114,11 +209,11 @@ public final class SqlBuilder {
                 setClause.append(e.getKey()).append(" = ?");
                 updateParams.add(e.getValue());
             }
-            updateParams.add(columnValues.get(primaryKeyColumn)); // WHERE param goes last
+            updateParams.add(columnValues.get(primaryKeyColumn));
             String updateSql = "UPDATE " + tableName + " SET " + setClause
                     + " WHERE " + primaryKeyColumn + " = ?";
 
-            // Standard INSERT - works on all RDBMS
+            // Standard INSERT — works on all RDBMS
             String columns = String.join(", ", columnValues.keySet());
             String placeholders = String.join(", ", Collections.nCopies(columnValues.size(), "?"));
             String insertSql = "INSERT INTO " + tableName + " (" + columns + ") VALUES (" + placeholders + ")";
@@ -128,12 +223,18 @@ public final class SqlBuilder {
                     updateSql, updateParams, insertSql, insertParams);
         }
 
-        throw new IllegalArgumentException("Unknown operation '" + operation + "' found at path: " + operationPath);
+        throw new IllegalArgumentException(
+                "Unknown operation '" + operation + "' found at path: " + operationPath);
     }
+
+    // -------------------------------------------------------------------------
+    // Utility methods (public so DemoRunner can reuse them)
+    // -------------------------------------------------------------------------
 
     /** Walks a dot-separated path (e.g. "header.uuid") through nested maps. Missing fields return null. */
     @SuppressWarnings("unchecked")
     public static Object resolvePath(Map<String, Object> data, String path) {
+        if (data == null || path == null) return null;
         String[] parts = path.split("\\.");
         Object current = data;
         for (String part : parts) {
@@ -158,7 +259,6 @@ public final class SqlBuilder {
             try {
                 return MAPPER.writeValueAsString(value);
             } catch (JsonProcessingException e) {
-                // Fall back to toString() if serialization somehow fails
                 return value.toString();
             }
         }
@@ -167,8 +267,7 @@ public final class SqlBuilder {
 
     /**
      * Builds a human-readable version of the SQL with literal values substituted in
-     * place of the ? placeholders. This is for display only - never execute this
-     * string directly, use the parameterized `sql` + `parameters` instead.
+     * place of the ? placeholders. For display only — never execute this string directly.
      */
     public static String preview(String sql, List<Object> parameters) {
         String result = sql;

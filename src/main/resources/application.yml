@@ -22,19 +22,28 @@ app:
       operation-path: "header.action"
 
     # Each entry in target-schemas is an independent table mapping.
-    # A single incoming Kafka message is applied to ALL entries whose filter
-    # matches (or that have no filter at all).
+    # A message is applied to a schema when:
+    #   - the schema has no filter (always applied), OR
+    #   - the message value at filter-path equals filter-value
     #
-    # Optional per-schema fields:
-    #   filter-path  - dot-separated path into the JSON message
-    #   filter-value - the schema is only applied when the message value at
-    #                  filter-path equals this string (case-insensitive).
-    #                  If both are absent the schema is always applied.
+    # source-array (optional): dot-path to a JSON array inside the message.
+    #   If set, the schema is applied once PER ELEMENT in that array.
+    #   Column paths resolve from each element first, then fall back to the
+    #   top-level message.
+    #
+    # pk-source: "generated" (optional, per column): auto-generates the primary
+    #   key as <parent_uuid>-<array_index> (e.g. ORD-001-0, ORD-001-1).
     target-schemas:
 
-      # Schema 1: invoice records table — always applied (no filter).
+      # -----------------------------------------------------------------------
+      # INVOICE SCHEMAS (header.type = invoice, or no type field)
+      # -----------------------------------------------------------------------
+
+      # Schema 1: main invoice table — one row per message
       - table-name: "db_invoices"
         userkey-path: "header.uuid"
+        filter-path: "header.type"
+        filter-value: "invoice"
         invoice_id:
           path: "header.uuid"
         invoiceamount:
@@ -54,9 +63,11 @@ app:
         addr_district:
           path: "child.address.district"
 
-      # Schema 2: audit log table — always applied (no filter).
+      # Schema 2: audit log — one row per invoice message
       - table-name: "db_audit_log"
         userkey-path: "header.uuid"
+        filter-path: "header.type"
+        filter-value: "invoice"
         log_id:
           path: "header.uuid"
         action:
@@ -66,45 +77,62 @@ app:
         created_by:
           path: "vendor"
 
-      # Schema 3: enterprise vendor summary — applied ONLY when the message
-      # contains vendor_type = "enterprise". Regular invoices are skipped here.
-      - table-name: "db_vendor_summary"
+      # -----------------------------------------------------------------------
+      # ORDER SCHEMAS (header.type = order)
+      # One incoming order message fans out to THREE tables simultaneously.
+      # -----------------------------------------------------------------------
+
+      # Schema 3: orders — one row per message (top-level order fields)
+      - table-name: "orders"
         userkey-path: "header.uuid"
-        filter-path: "vendor_type"
-        filter-value: "enterprise"
-        summary_id:
+        filter-path: "header.type"
+        filter-value: "order"
+        order_id:
           path: "header.uuid"
-        vendor_name:
-          path: "vendor"
-        vendor_type:
-          path: "vendor_type"
+        customer_name:
+          path: "customer_name"
         total_amount:
-          path: "invoice_amount"
-        region:
-          path: "child.address.city"
+          path: "total_amount"
+        status:
+          path: "status"
+
+      # Schema 4: order_items — ONE ROW PER ELEMENT in the items array
+      #   source-array tells the engine to iterate items[].
+      #   item_id is auto-generated as <order_id>-<index> (e.g. ORD-001-0).
+      #   order_id falls back to top-level header.uuid because it is not
+      #   present on the array element itself.
+      - table-name: "order_items"
+        userkey-path: "header.uuid"
+        filter-path: "header.type"
+        filter-value: "order"
+        source-array: "items"
+        item_id:
+          path: "header.uuid"
+          pk-source: "generated"
+        order_id:
+          path: "header.uuid"
+        sku:
+          path: "sku"
+        qty:
+          path: "qty"
+        price:
+          path: "price"
+
+      # Schema 5: order_audit — lightweight log, one row per order message
+      - table-name: "order_audit"
+        userkey-path: "header.uuid"
+        filter-path: "header.type"
+        filter-value: "order"
+        log_id:
+          path: "header.uuid"
+        action:
+          path: "header.action"
+        written_by:
+          path: "customer_name"
+        item_count:
+          path: "total_items"
 
 logging:
   level:
     com.replication: INFO
     org.springframework.jdbc: DEBUG
-
-# Sample input JSON (enterprise vendor — hits Schema 1 + Schema 3, skips Schema 2):
-# {
-#   "header": { "uuid": "INV-ENT-001", "action": "insert" },
-#   "invoice_amount": 95000.00,
-#   "vendor": "Tata Consultancy Services",
-#   "vendor_type": "enterprise",
-#   "paid": true,
-#   "For_order": "ORD-E-001",
-#   "child": {
-#     "for_order": "SUB-E-001",
-#     "address": { "city": "Mumbai", "state": "Maharashtra" }
-#   }
-# }
-#
-# This message produces SQL for Schema 1 (db_invoices) and Schema 3 (db_vendor_summary).
-# Schema 2 (db_audit_log) is SKIPPED because filter-path/filter-value is not present on it.
-# Wait — actually Schema 2 has no filter so it is always applied.
-# Schema 3 IS applied because vendor_type == "enterprise".
-#
-# To skip Schema 3 send a message without vendor_type or with vendor_type != "enterprise".

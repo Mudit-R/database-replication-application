@@ -1,0 +1,16 @@
+{
+  "header": {
+    "uuid": "ORD-001",
+    "action": "insert",
+    "type": "order"
+  },
+  "customer_name": "John Doe",
+  "total_amount": 1024.00,
+  "total_items": 3,
+  "status": "confirmed",
+  "items": [
+    { "sku": "LAPTOP-01", "qty": 1, "price": 999.00 },
+    { "sku": "MOUSE-01",  "qty": 2, "price": 12.50  },
+    { "sku": "USB-HUB-01","qty": 1, "price": 24.99  }
+  ]
+}

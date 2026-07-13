@@ -13,7 +13,7 @@ spring:
 
 app:
   kafka:
-    topic: nosql-replication
+    topics: "nosql-replication,nosql-orders"
     group-id: replication-consumer-group
     concurrency: 3
 
@@ -23,25 +23,19 @@ app:
 
     # Each entry in target-schemas is an independent table mapping.
     # A message is applied to a schema when:
-    #   - the schema has no filter (always applied), OR
+    #   - the schema has no filters (always applied), OR
+    #   - the source topic name matches filter-topic, AND
     #   - the message value at filter-path equals filter-value
-    #
-    # source-array (optional): dot-path to a JSON array inside the message.
-    #   If set, the schema is applied once PER ELEMENT in that array.
-    #   Column paths resolve from each element first, then fall back to the
-    #   top-level message.
-    #
-    # pk-source: "generated" (optional, per column): auto-generates the primary
-    #   key as <parent_uuid>-<array_index> (e.g. ORD-001-0, ORD-001-1).
     target-schemas:
 
       # -----------------------------------------------------------------------
-      # INVOICE SCHEMAS (header.type = invoice, or no type field)
+      # INVOICE SCHEMAS (consumed from "nosql-replication" topic)
       # -----------------------------------------------------------------------
 
       # Schema 1: main invoice table — one row per message
       - table-name: "db_invoices"
         userkey-path: "header.uuid"
+        filter-topic: "nosql-replication"
         filter-path: "header.type"
         filter-value: "invoice"
         invoice_id:
@@ -66,6 +60,7 @@ app:
       # Schema 2: audit log — one row per invoice message
       - table-name: "db_audit_log"
         userkey-path: "header.uuid"
+        filter-topic: "nosql-replication"
         filter-path: "header.type"
         filter-value: "invoice"
         log_id:
@@ -78,13 +73,13 @@ app:
           path: "vendor"
 
       # -----------------------------------------------------------------------
-      # ORDER SCHEMAS (header.type = order)
-      # One incoming order message fans out to THREE tables simultaneously.
+      # ORDER SCHEMAS (consumed from "nosql-orders" topic)
       # -----------------------------------------------------------------------
 
       # Schema 3: orders — one row per message (top-level order fields)
       - table-name: "orders"
         userkey-path: "header.uuid"
+        filter-topic: "nosql-orders"
         filter-path: "header.type"
         filter-value: "order"
         order_id:
@@ -97,12 +92,9 @@ app:
           path: "status"
 
       # Schema 4: order_items — ONE ROW PER ELEMENT in the items array
-      #   source-array tells the engine to iterate items[].
-      #   item_id is auto-generated as <order_id>-<index> (e.g. ORD-001-0).
-      #   order_id falls back to top-level header.uuid because it is not
-      #   present on the array element itself.
       - table-name: "order_items"
         userkey-path: "header.uuid"
+        filter-topic: "nosql-orders"
         filter-path: "header.type"
         filter-value: "order"
         source-array: "items"
@@ -121,6 +113,7 @@ app:
       # Schema 5: order_audit — lightweight log, one row per order message
       - table-name: "order_audit"
         userkey-path: "header.uuid"
+        filter-topic: "nosql-orders"
         filter-path: "header.type"
         filter-value: "order"
         log_id:

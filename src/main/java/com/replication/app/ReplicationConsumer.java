@@ -5,21 +5,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
 
 /**
- * Consumes NoSQL change-event messages from Kafka and replicates them into
+ * Consumes change-event messages from multiple Kafka topics and replicates them into
  * one or more RDBMS tables described by app.replication.target-schemas.
  *
- * For each schema:
- *   - If the schema has no source-array: produces one row from the message
- *   - If the schema has source-array:    iterates the array and produces
- *     one row per element (e.g. order_items from an items array)
- *   - If the schema has filter-path/filter-value: only applied when the
- *     message value at filter-path matches filter-value
+ * It filters schemas dynamically based on the source Kafka topic and/or internal message properties.
  */
 @Component
 public class ReplicationConsumer {
@@ -35,9 +32,9 @@ public class ReplicationConsumer {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    @KafkaListener(topics = "${app.kafka.topic}", groupId = "${app.kafka.group-id}", concurrency = "${app.kafka.concurrency}")
-    public void onMessage(String message) {
-        log.info("Received message: {}", message);
+    @KafkaListener(topics = "#{'${app.kafka.topics}'.split(',')}", groupId = "${app.kafka.group-id}", concurrency = "${app.kafka.concurrency}")
+    public void onMessage(String message, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
+        log.info("Received message on topic '{}': {}", topic, message);
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> json = objectMapper.readValue(message, Map.class);
@@ -47,7 +44,7 @@ public class ReplicationConsumer {
             for (Map<String, Object> schema : properties.getTargetSchemas()) {
                 String tableName = (String) schema.get("table-name");
 
-                if (!schemaApplies(json, schema)) {
+                if (!schemaApplies(json, schema, topic)) {
                     log.info("Schema '{}' skipped — filter did not match", tableName);
                     continue;
                 }
@@ -86,7 +83,11 @@ public class ReplicationConsumer {
         }
     }
 
-    private boolean schemaApplies(Map<String, Object> json, Map<String, Object> schema) {
+    private boolean schemaApplies(Map<String, Object> json, Map<String, Object> schema, String topic) {
+        String filterTopic = (String) schema.get("filter-topic");
+        if (filterTopic != null && !filterTopic.equalsIgnoreCase(topic)) {
+            return false;
+        }
         String filterPath  = (String) schema.get("filter-path");
         String filterValue = (String) schema.get("filter-value");
         if (filterPath == null || filterValue == null) {

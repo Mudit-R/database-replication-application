@@ -86,15 +86,6 @@ INSERT INTO order_items (item_id, order_id, sku, qty, price)
 
 INSERT INTO order_items (item_id, order_id, sku, qty, price)
   VALUES ('ORD-001-2', 'ORD-001', 'USB-HUB-01', 1, 24.99)
-
--- Table 3: order_audit (1 row — lightweight log)
-INSERT INTO order_audit (log_id, action, written_by, item_count)
-  VALUES ('ORD-001', 'insert', 'John Doe', 3)
-
-
-**Schema config (from application.yml) that drives this:**
-
-```yaml
 target-schemas:
 
   # Schema 1: orders -- one row per message, no array iteration
@@ -137,24 +128,6 @@ target-schemas:
       path: "qty"
     price:
       path: "price"
-
-  # Schema 3: order_audit -- one row per message, no array iteration
-  - table-name: "order_audit"
-    userkey-path: "header.uuid"
-    filter-topic: "nosql-orders"
-    filter-path: "header.type"
-    filter-value: "order"
-    required-paths:
-      - "header.uuid"
-      - "customer_name"
-    log_id:
-      path: "header.uuid"
-    action:
-      path: "header.action"
-    written_by:
-      path: "customer_name"
-    item_count:
-      path: "total_items"
 ```
 
 **Target table schemas (what the RDBMS tables look like):**
@@ -178,18 +151,9 @@ CREATE TABLE order_items (
     price     DECIMAL(20,6),
     PRIMARY KEY (item_id)
 );
-
--- Table 3: order_audit
-CREATE TABLE order_audit (
-    log_id     VARCHAR(255) NOT NULL,
-    action     VARCHAR(50),
-    written_by VARCHAR(255),
-    item_count INT,
-    PRIMARY KEY (log_id)
-);
 ```
 
-**Result: 1 message → 5 SQL statements → 3 tables → 5 rows written**
+**Result: 1 message → 4 SQL statements → 2 tables → 4 rows written**
 
 The invoice schemas (`db_invoices`, `db_audit_log`) are skipped entirely because their `filter-topic` is `nosql-replication`, not `nosql-orders`.
 
@@ -221,7 +185,6 @@ Schema: db_invoices   — topic matches ✓, type=invoice ✓, required fields p
 Schema: db_audit_log  — topic matches ✓, type=invoice ✓, required fields present ✓  → WRITTEN
 Schema: orders        — topic is nosql-orders, message came from nosql-replication   → SKIPPED
 Schema: order_items   — topic is nosql-orders, message came from nosql-replication   → SKIPPED
-Schema: order_audit   — topic is nosql-orders, message came from nosql-replication   → SKIPPED
 ```
 
 ### Example B — Invoice message with a missing required field
@@ -260,7 +223,6 @@ Schema: db_invoices   — topic ✓ but header.type is "order", expected "invoic
 Schema: db_audit_log  — topic ✓ but header.type is "order", expected "invoice"       → SKIPPED
 Schema: orders        — topic is nosql-orders, came from nosql-replication            → SKIPPED
 Schema: order_items   — topic is nosql-orders, came from nosql-replication            → SKIPPED
-Schema: order_audit   — topic is nosql-orders, came from nosql-replication            → SKIPPED
 
 Result: Nothing written. Wrong format on wrong topic is completely ignored.
 ```

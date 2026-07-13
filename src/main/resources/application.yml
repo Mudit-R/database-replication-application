@@ -1,4 +1,4 @@
-spring:
+﻿spring:
   application:
     name: replication-engine
 
@@ -29,11 +29,10 @@ app:
     #   - the message contains all paths listed in required-paths
     target-schemas:
 
-      # -----------------------------------------------------------------------
+     
       # INVOICE SCHEMAS (consumed from "nosql-replication" topic)
-      # -----------------------------------------------------------------------
 
-      # Schema 1: main invoice table — one row per message
+      # Schema 1: main invoice table â€” one row per message
       - table-name: "db_invoices"
         userkey-path: "header.uuid"
         filter-topic: "nosql-replication"
@@ -62,7 +61,7 @@ app:
         addr_district:
           path: "child.address.district"
 
-      # Schema 2: audit log — one row per invoice message
+      # Schema 2: audit log â€” one row per invoice message
       - table-name: "db_audit_log"
         userkey-path: "header.uuid"
         filter-topic: "nosql-replication"
@@ -80,11 +79,11 @@ app:
         created_by:
           path: "vendor"
 
-      # -----------------------------------------------------------------------
+    
       # ORDER SCHEMAS (consumed from "nosql-orders" topic)
-      # -----------------------------------------------------------------------
+    
 
-      # Schema 3: orders — one row per message (top-level order fields)
+      # Schema 3: orders â€” one row per message (top-level order fields)
       - table-name: "orders"
         userkey-path: "header.uuid"
         filter-topic: "nosql-orders"
@@ -103,7 +102,7 @@ app:
         status:
           path: "status"
 
-      # Schema 4: order_items — ONE ROW PER ELEMENT in the items array
+      # Schema 4: order_items â€” ONE ROW PER ELEMENT in the items array
       - table-name: "order_items"
         userkey-path: "header.uuid"
         filter-topic: "nosql-orders"
@@ -124,24 +123,6 @@ app:
           path: "qty"
         price:
           path: "price"
-
-      # Schema 5: order_audit — lightweight log, one row per order message
-      - table-name: "order_audit"
-        userkey-path: "header.uuid"
-        filter-topic: "nosql-orders"
-        filter-path: "header.type"
-        filter-value: "order"
-        required-paths:
-          - "header.uuid"
-          - "customer_name"
-        log_id:
-          path: "header.uuid"
-        action:
-          path: "header.action"
-        written_by:
-          path: "customer_name"
-        item_count:
-          path: "total_items"
 
 logging:
   level:

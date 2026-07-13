@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS db_audit_log (
 );
 
 -- Order tables (e-commerce normalization example)
--- A single incoming order message splits into all three of these tables.
+-- A single incoming order message splits into two tables simultaneously.
 
 CREATE TABLE IF NOT EXISTS orders (
     order_id      VARCHAR(255) NOT NULL,
@@ -43,12 +43,4 @@ CREATE TABLE IF NOT EXISTS order_items (
     qty       INT,
     price     DECIMAL(20,6),
     PRIMARY KEY (item_id)
-);
-
-CREATE TABLE IF NOT EXISTS order_audit (
-    log_id     VARCHAR(255) NOT NULL,
-    action     VARCHAR(50),
-    written_by VARCHAR(255),
-    item_count INT,
-    PRIMARY KEY (log_id)
 );

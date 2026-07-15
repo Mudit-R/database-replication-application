@@ -49,7 +49,7 @@ A standalone tool that runs without Kafka or a database. Reads `application.yml`
 
 ---
 
-## Feature 1: Complex Queries — Multi-Table Update with Array Iteration
+## Feature 2: Complex Queries — Multi-Table Update with Array Iteration
 
 A single incoming message can fan out and write to multiple RDBMS tables simultaneously. When a schema has `source-array` set, the engine iterates that array and writes **one row per element**.
 

@@ -159,7 +159,7 @@ The invoice schemas (`db_invoices`, `db_audit_log`) are skipped entirely because
 
 ---
 
-## Feature 2: Topic Routing and Format Filtering
+## Feature 1: Topic Routing and Format Filtering
 
 The engine validates every incoming message against three layers before writing anything:
 

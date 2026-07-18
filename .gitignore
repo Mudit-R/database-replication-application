@@ -28,9 +28,6 @@ target/
 ### VS Code ###
 .vscode/
 
-### Personal notes ###
-NOTES.md
-
 ### Runtime Logs ###
 logs/
 

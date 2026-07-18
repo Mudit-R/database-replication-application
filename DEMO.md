@@ -7,6 +7,14 @@ This directory contains two  demonstration tools for testing and verifying the R
 
 ---
 
+## Sample Messages Location
+
+All test JSON payloads used by the demonstration tools are stored in the repository at:
+- 📁 [src/main/resources/samples/](src/main/resources/samples/) — Directory containing all 21 test JSON payloads (invoice scenarios, order scenarios with array nested items, deletes, updates, unicode characters, and edge cases).
+- 📄 [src/main/resources/sample-message.json](src/main/resources/sample-message.json) — Default single invoice message payload for simple dry-run testing.
+
+---
+
 ## 1. Dry-Run Demo (`DemoRunner`)
 
 The Dry-Run Demo tests the engine's SQL generation logic against `application.yml` mappings without touching any database or Kafka broker.

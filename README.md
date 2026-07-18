@@ -186,10 +186,10 @@ The engine validates every incoming message against three layers before writing 
 
 **Routing result:**
 ```
-Schema: db_invoices   — topic matches ✓, type=invoice ✓, required fields present ✓  → WRITTEN
-Schema: db_audit_log  — topic matches ✓, type=invoice ✓, required fields present ✓  → WRITTEN
-Schema: orders        — topic is nosql-orders, message came from nosql-replication   → SKIPPED
-Schema: order_items   — topic is nosql-orders, message came from nosql-replication   → SKIPPED
+Schema: db_invoices   - topic matches, type=invoice, required fields present  -> WRITTEN
+Schema: db_audit_log  - topic matches, type=invoice, required fields present  -> WRITTEN
+Schema: orders        - topic is nosql-orders, message came from nosql-replication   -> SKIPPED
+Schema: order_items   - topic is nosql-orders, message came from nosql-replication   -> SKIPPED
 ```
 
 ### Example B — Invoice message with a missing required field
@@ -205,8 +205,8 @@ Schema: order_items   — topic is nosql-orders, message came from nosql-replica
 
 **Routing result:**
 ```
-Schema: db_invoices   — topic ✓, type=invoice ✓, but "invoice_amount" is MISSING    → SKIPPED
-Schema: db_audit_log  — topic ✓, type=invoice ✓, but "invoice_amount" is MISSING    → SKIPPED
+Schema: db_invoices   - topic ok, type=invoice ok, but "invoice_amount" is MISSING    -> SKIPPED
+Schema: db_audit_log  - topic ok, type=invoice ok, but "invoice_amount" is MISSING    -> SKIPPED
 
 Result: Nothing written to any table. Message safely rejected due to bad format.
 ```
@@ -224,10 +224,10 @@ Result: Nothing written to any table. Message safely rejected due to bad format.
 
 **Routing result:**
 ```
-Schema: db_invoices   — topic ✓ but header.type is "order", expected "invoice"       → SKIPPED
-Schema: db_audit_log  — topic ✓ but header.type is "order", expected "invoice"       → SKIPPED
-Schema: orders        — topic is nosql-orders, came from nosql-replication            → SKIPPED
-Schema: order_items   — topic is nosql-orders, came from nosql-replication            → SKIPPED
+Schema: db_invoices   - topic ok but header.type is "order", expected "invoice"       -> SKIPPED
+Schema: db_audit_log  - topic ok but header.type is "order", expected "invoice"       -> SKIPPED
+Schema: orders        - topic is nosql-orders, came from nosql-replication            -> SKIPPED
+Schema: order_items   - topic is nosql-orders, came from nosql-replication            -> SKIPPED
 
 Result: Nothing written. Wrong format on wrong topic is completely ignored.
 ```

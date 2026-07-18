@@ -10,8 +10,8 @@ This directory contains two  demonstration tools for testing and verifying the R
 ## Sample Messages Location
 
 All test JSON payloads used by the demonstration tools are stored in the repository at:
-- 📁 [src/main/resources/samples/](src/main/resources/samples/) — Directory containing all 21 test JSON payloads (invoice scenarios, order scenarios with array nested items, deletes, updates, unicode characters, and edge cases).
-- 📄 [src/main/resources/sample-message.json](src/main/resources/sample-message.json) — Default single invoice message payload for simple dry-run testing.
+- [src/main/resources/samples/](src/main/resources/samples/) - Directory containing all 21 test JSON payloads (invoice scenarios, order scenarios with array nested items, deletes, updates, unicode characters, and edge cases).
+- [src/main/resources/sample-message.json](src/main/resources/sample-message.json) - Default single invoice message payload for simple dry-run testing.
 
 ---
 

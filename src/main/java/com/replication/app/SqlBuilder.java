@@ -158,7 +158,11 @@ public final class SqlBuilder {
 
         for (Map.Entry<String, Object> entry : targetSchema.entrySet()) {
             String columnName = entry.getKey();
-            // Skip plain string metadata fields (table-name, userkey-path, source-array, filter-*)
+            if (columnName.startsWith("filter-") || "table-name".equals(columnName)
+                    || "userkey-path".equals(columnName) || "source-array".equals(columnName)
+                    || "required-paths".equals(columnName)) {
+                continue;
+            }
             if (!(entry.getValue() instanceof Map)) {
                 continue;
             }
@@ -179,7 +183,7 @@ public final class SqlBuilder {
                 }
                 value = flatten(value);
 
-                if (path.equals(userKeyPath) && primaryKeyColumn == null) {
+                if (userKeyPath != null && userKeyPath.equals(path) && primaryKeyColumn == null) {
                     primaryKeyColumn = columnName;
                 }
             }

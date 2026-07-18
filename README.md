@@ -1,4 +1,4 @@
-﻿# database-replication-application
+# database-replication-application
 
 A Spring Boot service that listens to multiple Kafka topics simultaneously and mirrors change events into any JDBC-compatible relational database (MySQL, PostgreSQL, SQL Server, Oracle, etc.).
 
@@ -19,12 +19,14 @@ src/main/java/com/replication/app/
   ReplicationProperties.java          - binds app.replication.* config
   ReplicationConsumer.java            - Kafka listener, routes/filters, calls SqlBuilder, runs SQL
   SqlBuilder.java                     - builds SQL from a JSON message + schema config
+  LiveDemoRunner.java                 - Spring ApplicationRunner for live MySQL demo execution
 
 src/main/java/com/replication/demo/
   DemoRunner.java                     - standalone tool to test SQL generation locally
 
 src/main/resources/
   application.yml                     - Kafka topics, datasource, and field-mapping config
+  application-live-demo.yml           - profile config for live demo execution
   sample-message.json                 - example input for the demo
   log4j2.xml                          - logging config (console + rolling file)
   samples/                            - additional sample messages for testing
@@ -43,6 +45,9 @@ Pure Java — no Spring, no database. Takes a parsed JSON message and the field-
 
 **`ReplicationConsumer.java`**  
 The Kafka listener. Subscribes to all configured topics simultaneously. For each incoming message it reads the source topic name, validates the message format against `required-paths`, matches it against `filter-topic` and `filter-path`/`filter-value`, and only then executes SQL. Failed or non-matching messages are safely skipped without blocking the queue.
+
+**`LiveDemoRunner.java`**  
+Spring Boot `ApplicationRunner` active under profile `live-demo`. Truncates database tables, loads all 21 sample payloads, executes live SQL through `ReplicationConsumer` against MySQL, and prints formatted result tables.
 
 **`DemoRunner.java`**  
 A standalone tool that runs without Kafka or a database. Reads `application.yml` and a JSON file, then prints the SQL that would be generated. Useful for sanity-checking config before wiring up real infrastructure.
@@ -229,19 +234,97 @@ Result: Nothing written. Wrong format on wrong topic is completely ignored.
 
 ---
 
-## Running the demo (no Kafka or database needed)
+## Running the Demos
 
-**Double-click** `run-demo.bat` in the project root, or from a terminal:
+Detailed documentation and step-by-step verification steps are available in [DEMO.md](DEMO.md).
+
+### Mode 1: Dry-Run Demo (`DemoRunner`) — No DB / No Kafka required
+Generates and previews SQL statements in memory from `application.yml` and sample JSONs.
 
 ```cmd
 .\run-demo.bat
 ```
-
-To test with a specific sample message:
-
+Or test a specific message:
 ```cmd
 .\run-demo.bat src\main\resources\samples\21-order-with-items.json
 ```
+
+### Mode 2: Live Spring Boot Demo (`LiveDemoRunner`) — Requires MySQL
+Runs inside the Spring Boot context, truncates tables, processes all 21 sample payloads through `ReplicationConsumer`, executes SQL on MySQL, and queries the results.
+
+```cmd
+docker-compose up -d
+.\run-live-demo.bat
+```
+
+---
+
+## Live Demo Output Tables (MySQL)
+
+Below are the output tables generated across all 4 database tables after running the Live Demo against MySQL:
+
+### Table 1: `db_invoices` (16 rows)
+
+| invoice_id | invoiceamount | vendor_name | paid_paise | order_for | column1 | addr_city | addr_state | addr_district |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **INV-002** | 1800.00 | Acme Corp | `true` | ORD-100 | ORD-100-A | *NULL* | *NULL* | *NULL* |
+| **INV-003** | 9999.99 | Nested Corp | `true` | ORD-200 | ORD-200-A | London | *NULL* | *NULL* |
+| **INV-004** | 3200.00 | Array Vendor | `false` | ORD-300 | ORD-300-A | *NULL* | *NULL* | *NULL* |
+| **INV-005** | 7500.00 | Complex Co | `true` | ORD-400 | ORD-400-A | Mumbai | *NULL* | *NULL* |
+| **INV-006** | 100.00 | O'Reilly & Sons / "Tech" LLC | `false` | ORD-IT'S-COMPLEX/001 | sub-order#1 | *NULL* | *NULL* | *NULL* |
+| **INV-008** | 99999999.99 | Big Numbers Ltd | `true` | ORD-LARGE | SUB-LARGE | *NULL* | *NULL* | *NULL* |
+| **INV-009** | 0.00 | Zero Invoice | `false` | ORD-ZERO | SUB-ZERO | *NULL* | *NULL* | *NULL* |
+| **INV-011** | 4500.75 | Update Vendor | `true` | ORD-UPD | SUB-UPD | *NULL* | *NULL* | *NULL* |
+| **INV-012** | 2200.00 | Uppercase Action | `false` | ORD-UPPER | SUB-UPPER | *NULL* | *NULL* | *NULL* |
+| **INV-013** | 8800.00 | Unicode Vendor | `true` | ORD-?-500 | SUB-UNICODE | *NULL* | *NULL* | *NULL* |
+| **INV-014** | 5500.00 | Full Complex Vendor | `true` | ORD-FULL | SUB-FULL | Noida | UP | *NULL* |
+| **INV-ADDR-001** | 3500.00 | Alpha Retailers | `true` | ORD-N1 | SUB-N1 | Mumbai | Maharashtra | Mumbai City |
+| **INV-ADDR-002** | 7200.50 | Beta Distributors | `false` | ORD-N2 | SUB-N2 | Bengaluru | Karnataka | Bengaluru Urban |
+| **INV-COMPLEX-STR** | 5000.00 | Test Vendor | `true` | `{"abc":"val_abc"}` | `{"nested":"stringified"}` | *NULL* | *NULL* | *NULL* |
+| **INV-ENT-001** | 95000.00 | Tata Consultancy Services | `true` | ORD-E-001 | SUB-E-001 | Mumbai | Maharashtra | Mumbai City |
+| **INV-SMB-001** | 1200.00 | Local Traders Co | `false` | ORD-S-001 | SUB-S-001 | Delhi | Delhi NCR | Central Delhi |
+
+---
+
+### Table 2: `db_audit_log` (17 rows)
+
+| log_id | action | amount | created_by |
+| :--- | :--- | :--- | :--- |
+| **INV-002** | update | 1800.00 | Acme Corp |
+| **INV-003** | insert | 9999.99 | Nested Corp |
+| **INV-004** | insert | 3200.00 | Array Vendor |
+| **INV-005** | insert | 7500.00 | Complex Co |
+| **INV-006** | insert | 100.00 | O'Reilly & Sons / "Tech" LLC |
+| **INV-007** | insert | 0.01 | *NULL* |
+| **INV-008** | insert | 99999999.99 | Big Numbers Ltd |
+| **INV-009** | insert | 0.00 | Zero Invoice |
+| **INV-011** | update | 4500.75 | Update Vendor |
+| **INV-012** | INSERT | 2200.00 | Uppercase Action |
+| **INV-013** | insert | 8800.00 | Unicode Vendor |
+| **INV-014** | insert | 5500.00 | Full Complex Vendor |
+| **INV-ADDR-001** | insert | 3500.00 | Alpha Retailers |
+| **INV-ADDR-002** | insert | 7200.50 | Beta Distributors |
+| **INV-COMPLEX-STR** | insert | 5000.00 | Test Vendor |
+| **INV-ENT-001** | insert | 95000.00 | Tata Consultancy Services |
+| **INV-SMB-001** | insert | 1200.00 | Local Traders Co |
+
+---
+
+### Table 3: `orders` (1 row)
+
+| order_id | customer_name | total_amount | status |
+| :--- | :--- | :--- | :--- |
+| **ORD-001** | John Doe | 1024.00 | confirmed |
+
+---
+
+### Table 4: `order_items` (3 rows — array expanded from single order message)
+
+| item_id | order_id | sku | qty | price |
+| :--- | :--- | :--- | :--- | :--- |
+| **ORD-001-0** | ORD-001 | LAPTOP-01 | 1 | 999.00 |
+| **ORD-001-1** | ORD-001 | MOUSE-01 | 2 | 12.50 |
+| **ORD-001-2** | ORD-001 | USB-HUB-01 | 1 | 24.99 |
 
 ---
 

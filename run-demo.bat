@@ -1,12 +1,10 @@
 @echo off
 echo.
-echo === Replication Engine Demo ===
+echo === Replication Engine Dry-Run Demo ===
 echo.
 
-set JAVA="C:\gaming\code\bin\java.exe"
-set JAVAC="C:\gaming\code\bin\javac.exe"
-
-set M2=C:\Users\mohit\.m2\repository
+if "%USERPROFILE%"=="" set USERPROFILE=%HOMEDRIVE%%HOMEPATH%
+set M2=%USERPROFILE%\.m2\repository
 
 set CP=target\classes
 set CP=%CP%;%M2%\com\fasterxml\jackson\core\jackson-databind\2.15.4\jackson-databind-2.15.4.jar
@@ -19,11 +17,11 @@ set CP=%CP%;%M2%\org\apache\logging\log4j\log4j-core\2.23.1\log4j-core-2.23.1.ja
 echo [1/3] Compiling...
 if exist target\classes rmdir /s /q target\classes
 mkdir target\classes
-%JAVAC% -cp "%CP%" -d "target\classes" ^
+javac -cp "%CP%" -d "target\classes" ^
     src\main\java\com\replication\app\SqlBuilder.java ^
     src\main\java\com\replication\demo\DemoRunner.java
 if errorlevel 1 (
-    echo ERROR: Compilation failed.
+    echo ERROR: Compilation failed. Please ensure JDK is on your PATH or run: mvn compile exec:java
     pause
     exit /b 1
 )
@@ -35,7 +33,7 @@ copy /y src\main\resources\log4j2.xml target\classes\ >nul
 
 echo [3/3] Running demo...
 echo.
-%JAVA% -cp "%CP%" com.replication.demo.DemoRunner
+java -cp "%CP%" com.replication.demo.DemoRunner %*
 
 echo.
 pause

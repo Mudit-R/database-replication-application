@@ -93,16 +93,19 @@ public class ReplicationConsumer {
         String filterValue = (String) schema.get("filter-value");
         if (filterPath != null && filterValue != null) {
             Object actual = SqlBuilder.resolvePath(json, filterPath);
-            if (actual == null || !filterValue.equalsIgnoreCase(String.valueOf(actual))) {
+            if (actual != null && !filterValue.equalsIgnoreCase(String.valueOf(actual))) {
                 return false;
             }
         }
 
         // Format Recognition layer: validate presence of required paths
-        @SuppressWarnings("unchecked")
-        List<String> requiredPaths = (List<String>) schema.get("required-paths");
-        if (requiredPaths != null) {
-            for (String path : requiredPaths) {
+        Object reqObj = schema.get("required-paths");
+        if (reqObj != null) {
+            java.util.Collection<?> paths = (reqObj instanceof Map) 
+                    ? ((Map<?, ?>) reqObj).values() 
+                    : (reqObj instanceof List ? (List<?>) reqObj : java.util.Collections.emptyList());
+            for (Object pathObj : paths) {
+                String path = String.valueOf(pathObj);
                 if (SqlBuilder.resolvePath(json, path) == null) {
                     log.info("Schema '{}' skipped — required path '{}' is missing or null", schema.get("table-name"), path);
                     return false;

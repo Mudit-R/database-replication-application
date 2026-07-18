@@ -31,6 +31,9 @@ target/
 ### Personal notes ###
 NOTES.md
 
+### Runtime Logs ###
+logs/
+
 ### Operating System Files ###
 Thumbs.db
 ehthumbs.db

@@ -1,9 +1,9 @@
 # Replication Engine — Demo Guide & Verification Tables
 
-This directory contains two interactive demonstration tools for testing and verifying the Replication Engine:
+This directory contains two  demonstration tools for testing and verifying the Replication Engine:
 
 1. **Dry-Run Demo** (`DemoRunner`): Generates and previews SQL statements in memory without requiring a database or Kafka.
-2. **Live Spring Boot Demo** (`LiveDemoRunner`): Runs inside the actual Spring Boot context, executes real JDBC SQL statements against MySQL, and displays formatted database tables.
+2. **Live Spring Boot Demo** (`LiveDemoRunner`): Runs inside the actual Spring Boot context, executes real JDBC SQL statements against a example MySQL Database (which I created with docker), and displays formatted database tables.
 
 ---
 
@@ -34,12 +34,12 @@ The Live Demo executes inside the real Spring Boot application environment. On s
 1. Truncates all 4 RDBMS target tables (`db_invoices`, `db_audit_log`, `orders`, `order_items`).
 2. Loads all 21 sample JSON payloads from `src/main/resources/samples/`.
 3. Dynamically infers topic routing for each payload.
-4. Passes messages directly through `ReplicationConsumer.onMessage()` — executing live SQL upserts/deletes against MySQL.
+4. Passes messages directly through `ReplicationConsumer.onMessage()` — executing live SQL upserts/deletes against the Target database.
 5. Queries MySQL using `JdbcTemplate` and displays ASCII tables of all rows written.
 
 ### Prerequisites
 
-Ensure Docker Desktop is running and start the MySQL container:
+Ensure Docker Desktop is running and start the MySQL container: (example target database that I used, but the code can run for any rdbms)
 ```bash
 docker-compose up -d
 ```

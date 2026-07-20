@@ -1,4 +1,4 @@
-﻿spring:
+spring:
   application:
     name: replication-engine
 
@@ -52,7 +52,7 @@ app:
           path: "paid"
         order_for:
           path: "For_order"
-        column1:
+        sub_order_ref:
           path: "child.for_order"
         addr_city:
           path: "child.address.city"
@@ -123,6 +123,8 @@ app:
           path: "qty"
         price:
           path: "price"
+        color:
+          path: "color"
 
 logging:
   level:

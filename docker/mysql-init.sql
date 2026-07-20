@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS db_invoices (
     vendor_name   VARCHAR(255),
     paid_paise    BOOLEAN,
     order_for     VARCHAR(255),
-    column1       VARCHAR(255),
+    sub_order_ref VARCHAR(255),
     child_data    TEXT,
     addr_city     VARCHAR(255),
     addr_state    VARCHAR(255),
@@ -42,5 +42,6 @@ CREATE TABLE IF NOT EXISTS order_items (
     sku       VARCHAR(255),
     qty       INT,
     price     DECIMAL(20,6),
+    color     VARCHAR(100),
     PRIMARY KEY (item_id)
 );

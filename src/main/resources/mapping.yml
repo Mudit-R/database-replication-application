@@ -1,0 +1,123 @@
+# =============================================================================
+# mapping.yml — Schema mapping configuration
+#
+# This file defines how incoming Kafka messages are mapped to target database
+# tables. It is intentionally kept separate from application.yml so that
+# connection/infrastructure config and business mapping config have distinct
+# ownership and can be changed independently.
+#
+# Each entry under target-schemas is an independent table mapping.
+# A message is written to a schema when ALL of the following hold:
+#   1. filter-topic  — the Kafka topic matches
+#   2. filter-path   — the field at this JSON path equals filter-value
+#   3. required-paths — all listed paths exist in the message
+#
+# Column mappings are key-value pairs where:
+#   key   = target database column name
+#   path  = dot-separated path into the JSON message
+# =============================================================================
+
+app:
+  replication:
+    envelope:
+      operation-path: "header.action"   # field that carries insert/update/delete
+
+    target-schemas:
+
+      # ── INVOICE SCHEMAS ─────────────────────────────────────────────────────
+      # Both schemas below are triggered by the same topic + filter.
+      # A single invoice message writes to BOTH tables simultaneously.
+
+      # Schema 1: Main invoice table — one row per message
+      - table-name: "db_invoices"
+        userkey-path: "header.uuid"
+        filter-topic: "nosql-replication"
+        filter-path:  "header.type"
+        filter-value: "invoice"
+        required-paths:
+          - "header.uuid"
+          - "invoice_amount"
+          - "vendor"
+        invoice_id:
+          path: "header.uuid"
+        invoiceamount:
+          path: "invoice_amount"
+        vendor_name:
+          path: "vendor"
+        paid_paise:
+          path: "paid"
+        order_for:
+          path: "For_order"
+        sub_order_ref:
+          path: "child.for_order"
+        addr_city:
+          path: "child.address.city"
+        addr_state:
+          path: "child.address.state"
+        addr_district:
+          path: "child.address.district"
+
+      # Schema 2: Audit log — one row per invoice message
+      - table-name: "db_audit_log"
+        userkey-path: "header.uuid"
+        filter-topic: "nosql-replication"
+        filter-path:  "header.type"
+        filter-value: "invoice"
+        required-paths:
+          - "header.uuid"
+          - "invoice_amount"
+        log_id:
+          path: "header.uuid"
+        action:
+          path: "header.action"
+        amount:
+          path: "invoice_amount"
+        created_by:
+          path: "vendor"
+
+      # ── ORDER SCHEMAS ────────────────────────────────────────────────────────
+      # A single order message writes to BOTH tables simultaneously.
+      # order_items uses source-array to fan out one row per array element.
+
+      # Schema 3: Orders — one row per message (top-level order fields)
+      - table-name: "orders"
+        userkey-path: "header.uuid"
+        filter-topic: "nosql-orders"
+        filter-path:  "header.type"
+        filter-value: "order"
+        required-paths:
+          - "header.uuid"
+          - "customer_name"
+          - "total_amount"
+        order_id:
+          path: "header.uuid"
+        customer_name:
+          path: "customer_name"
+        total_amount:
+          path: "total_amount"
+        status:
+          path: "status"
+
+      # Schema 4: Order items — ONE ROW PER ELEMENT in the items array
+      - table-name: "order_items"
+        userkey-path: "header.uuid"
+        filter-topic: "nosql-orders"
+        filter-path:  "header.type"
+        filter-value: "order"
+        source-array: "items"
+        required-paths:
+          - "header.uuid"
+          - "items"
+        item_id:
+          path: "header.uuid"
+          pk-source: "generated"
+        order_id:
+          path: "header.uuid"
+        sku:
+          path: "sku"
+        qty:
+          path: "qty"
+        price:
+          path: "price"
+        color:
+          path: "color"

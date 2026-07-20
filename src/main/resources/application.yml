@@ -2,130 +2,33 @@ spring:
   application:
     name: replication-engine
 
+  # ── Source NoSQL database (MongoDB/other) connection would go here ──────────
+  # nosql:
+  #   uri: mongodb://localhost:27017/source_db
+
+  # ── Target relational database ───────────────────────────────────────────────
   datasource:
     url: jdbc:mysql://localhost:3306/replication_db
     username: root
     password: password
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  # ── Kafka broker ─────────────────────────────────────────────────────────────
   kafka:
     bootstrap-servers: localhost:9092
 
+  # ── Load the schema mapping file separately ───────────────────────────────────
+  config:
+    import: "classpath:mapping.yml"
+
+# ── Kafka consumer settings ───────────────────────────────────────────────────
 app:
   kafka:
     topics: "nosql-replication,nosql-orders"
     group-id: replication-consumer-group
     concurrency: 3
 
-  replication:
-    envelope:
-      operation-path: "header.action"
-
-    # Each entry in target-schemas is an independent table mapping.
-    # A message is applied to a schema when:
-    #   - the schema has no filters (always applied), OR
-    #   - the source topic name matches filter-topic, AND
-    #   - the message value at filter-path equals filter-value, AND
-    #   - the message contains all paths listed in required-paths
-    target-schemas:
-
-     
-      # INVOICE SCHEMAS (consumed from "nosql-replication" topic)
-
-      # Schema 1: main invoice table â€” one row per message
-      - table-name: "db_invoices"
-        userkey-path: "header.uuid"
-        filter-topic: "nosql-replication"
-        filter-path: "header.type"
-        filter-value: "invoice"
-        required-paths:
-          - "header.uuid"
-          - "invoice_amount"
-          - "vendor"
-        invoice_id:
-          path: "header.uuid"
-        invoiceamount:
-          path: "invoice_amount"
-        vendor_name:
-          path: "vendor"
-        paid_paise:
-          path: "paid"
-        order_for:
-          path: "For_order"
-        sub_order_ref:
-          path: "child.for_order"
-        addr_city:
-          path: "child.address.city"
-        addr_state:
-          path: "child.address.state"
-        addr_district:
-          path: "child.address.district"
-
-      # Schema 2: audit log â€” one row per invoice message
-      - table-name: "db_audit_log"
-        userkey-path: "header.uuid"
-        filter-topic: "nosql-replication"
-        filter-path: "header.type"
-        filter-value: "invoice"
-        required-paths:
-          - "header.uuid"
-          - "invoice_amount"
-        log_id:
-          path: "header.uuid"
-        action:
-          path: "header.action"
-        amount:
-          path: "invoice_amount"
-        created_by:
-          path: "vendor"
-
-    
-      # ORDER SCHEMAS (consumed from "nosql-orders" topic)
-    
-
-      # Schema 3: orders â€” one row per message (top-level order fields)
-      - table-name: "orders"
-        userkey-path: "header.uuid"
-        filter-topic: "nosql-orders"
-        filter-path: "header.type"
-        filter-value: "order"
-        required-paths:
-          - "header.uuid"
-          - "customer_name"
-          - "total_amount"
-        order_id:
-          path: "header.uuid"
-        customer_name:
-          path: "customer_name"
-        total_amount:
-          path: "total_amount"
-        status:
-          path: "status"
-
-      # Schema 4: order_items â€” ONE ROW PER ELEMENT in the items array
-      - table-name: "order_items"
-        userkey-path: "header.uuid"
-        filter-topic: "nosql-orders"
-        filter-path: "header.type"
-        filter-value: "order"
-        source-array: "items"
-        required-paths:
-          - "header.uuid"
-          - "items"
-        item_id:
-          path: "header.uuid"
-          pk-source: "generated"
-        order_id:
-          path: "header.uuid"
-        sku:
-          path: "sku"
-        qty:
-          path: "qty"
-        price:
-          path: "price"
-        color:
-          path: "color"
-
+# ── Logging ───────────────────────────────────────────────────────────────────
 logging:
   level:
     com.replication: INFO

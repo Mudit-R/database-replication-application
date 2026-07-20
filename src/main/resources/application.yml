@@ -24,7 +24,6 @@ spring:
 # ── Kafka consumer settings ───────────────────────────────────────────────────
 app:
   kafka:
-    topics: "nosql-replication,nosql-orders"
     group-id: replication-consumer-group
     concurrency: 3
 

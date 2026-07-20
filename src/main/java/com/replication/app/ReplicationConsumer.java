@@ -32,7 +32,7 @@ public class ReplicationConsumer {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    @KafkaListener(topics = "#{'${app.kafka.topics}'.split(',')}", groupId = "${app.kafka.group-id}", concurrency = "${app.kafka.concurrency}")
+    @KafkaListener(topics = "#{@replicationProperties.getTopics()}", groupId = "${app.kafka.group-id}", concurrency = "${app.kafka.concurrency}")
     public void onMessage(String message, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
         log.info("Received message on topic '{}': {}", topic, message);
         try {

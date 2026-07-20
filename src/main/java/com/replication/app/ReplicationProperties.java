@@ -37,6 +37,21 @@ public class ReplicationProperties {
         this.targetSchemas = targetSchemas;
     }
 
+    /**
+     * Dynamically extracts all distinct non-null filter-topic values from targetSchemas.
+     * Used by KafkaListener to subscribe to topics declared across all schema mappings.
+     */
+    public String[] getTopics() {
+        if (targetSchemas == null || targetSchemas.isEmpty()) {
+            return new String[0];
+        }
+        return targetSchemas.stream()
+                .map(schema -> (String) schema.get("filter-topic"))
+                .filter(topic -> topic != null && !topic.trim().isEmpty())
+                .distinct()
+                .toArray(String[]::new);
+    }
+
     public static class Envelope {
         private String operationPath;
 

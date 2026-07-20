@@ -5,16 +5,21 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
- * Binds the "app.replication.*" section of application.yml.
+ * Binds the "app.replication.*" section of mapping.yml (imported by application.yml).
  *
  * targetSchemas is a list so that one incoming Kafka message can be applied
  * to multiple RDBMS tables. Each entry in the list is an independent
  * target-schema block with its own table-name, userkey-path, and column
- * mappings. The consumer iterates the list and executes SQL for each one.
+ * mappings.
+ *
+ * It also dynamically resolves the list of Kafka topics to listen to
+ * by extracting all unique "filter-topic" declarations from target-schemas.
  */
-@Component
+@Component("replicationProperties")
 @ConfigurationProperties(prefix = "app.replication")
 public class ReplicationProperties {
 
@@ -38,18 +43,20 @@ public class ReplicationProperties {
     }
 
     /**
-     * Dynamically extracts all distinct non-null filter-topic values from targetSchemas.
-     * Used by KafkaListener to subscribe to topics declared across all schema mappings.
+     * Dynamically extracts distinct, non-empty filter-topic values from target-schemas.
+     * Used by @KafkaListener in ReplicationConsumer to automatically subscribe to all schema topics.
      */
-    public String[] getTopics() {
-        if (targetSchemas == null || targetSchemas.isEmpty()) {
-            return new String[0];
+    public List<String> getTopics() {
+        if (targetSchemas == null) {
+            return List.of();
         }
         return targetSchemas.stream()
                 .map(schema -> (String) schema.get("filter-topic"))
-                .filter(topic -> topic != null && !topic.trim().isEmpty())
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(t -> !t.isEmpty())
                 .distinct()
-                .toArray(String[]::new);
+                .collect(Collectors.toList());
     }
 
     public static class Envelope {

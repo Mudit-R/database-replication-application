@@ -21,7 +21,7 @@ spring:
   config:
     import: "classpath:mapping.yml"
 
-# ── Kafka consumer settings ───────────────────────────────────────────────────
+# ── Kafka consumer settings (topics are dynamically derived from mapping.yml) ─
 app:
   kafka:
     group-id: replication-consumer-group

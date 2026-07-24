@@ -1,14 +1,9 @@
 # =============================================================================
 # orders.yml — Order schema mappings
-#
-# Handles messages from topic: nosql-orders where header.type = "order"
-# A single order message fans out into:
-#   - 1 row in orders (top-level fields)
-#   - N rows in order_items (one per element in the items array)
 # =============================================================================
 
 envelope:
-  operation-path: "header.action"   # field that carries insert/update/delete
+  operation-path: "header.action"
 
 target-schemas:
 
@@ -31,9 +26,9 @@ target-schemas:
     status:
       path: "status"
 
-  # Schema 2: Order items — ONE ROW PER ELEMENT in the items array (fan-out)
+  # Schema 2: Order items — Uses item_code as Primary Key
   - table-name: "order_items"
-    userkey-path: "header.uuid"
+    userkey-path: "item_code"          # ← Primary Key path for item-level updates
     filter-topic: "nosql-orders"
     filter-path:  "header.type"
     filter-value: "order"
@@ -42,8 +37,7 @@ target-schemas:
       - "header.uuid"
       - "items"
     item_id:
-      path: "header.uuid"
-      pk-source: "generated"
+      path: "item_code"
     order_id:
       path: "header.uuid"
     sku:

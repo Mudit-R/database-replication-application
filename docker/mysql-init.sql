@@ -45,13 +45,3 @@ CREATE TABLE IF NOT EXISTS order_items (
     color     VARCHAR(100),
     PRIMARY KEY (item_id)
 );
-
--- Payment table
-CREATE TABLE IF NOT EXISTS payments (
-    payment_id VARCHAR(255) NOT NULL,
-    order_ref  VARCHAR(255),
-    amount     DECIMAL(20,6),
-    method     VARCHAR(100),
-    status     VARCHAR(50),
-    PRIMARY KEY (payment_id)
-);

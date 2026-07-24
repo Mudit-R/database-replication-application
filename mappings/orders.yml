@@ -1,0 +1,56 @@
+# =============================================================================
+# orders.yml — Order schema mappings
+#
+# Handles messages from topic: nosql-orders where header.type = "order"
+# A single order message fans out into:
+#   - 1 row in orders (top-level fields)
+#   - N rows in order_items (one per element in the items array)
+# =============================================================================
+
+envelope:
+  operation-path: "header.action"   # field that carries insert/update/delete
+
+target-schemas:
+
+  # Schema 1: Orders — one row per message (top-level order fields)
+  - table-name: "orders"
+    userkey-path: "header.uuid"
+    filter-topic: "nosql-orders"
+    filter-path:  "header.type"
+    filter-value: "order"
+    required-paths:
+      - "header.uuid"
+      - "customer_name"
+      - "total_amount"
+    order_id:
+      path: "header.uuid"
+    customer_name:
+      path: "customer_name"
+    total_amount:
+      path: "total_amount"
+    status:
+      path: "status"
+
+  # Schema 2: Order items — ONE ROW PER ELEMENT in the items array (fan-out)
+  - table-name: "order_items"
+    userkey-path: "header.uuid"
+    filter-topic: "nosql-orders"
+    filter-path:  "header.type"
+    filter-value: "order"
+    source-array: "items"
+    required-paths:
+      - "header.uuid"
+      - "items"
+    item_id:
+      path: "header.uuid"
+      pk-source: "generated"
+    order_id:
+      path: "header.uuid"
+    sku:
+      path: "sku"
+    qty:
+      path: "qty"
+    price:
+      path: "price"
+    color:
+      path: "color"

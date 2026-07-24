@@ -1,0 +1,1 @@
+{"header":{"uuid":"ORD-ECOM-2024","action":"insert","type":"order"},"customer_name":"Amit Sharma","total_amount":84997.0,"total_items":3,"status":"confirmed","items":[{"sku":"DELL-LAPTOP-15","qty":1,"price":75000.0},{"sku":"LOGITECH-MX3","qty":2,"price":4999.0},{"sku":"USB-C-HUB-7P","qty":1,"price":1999.0}]}

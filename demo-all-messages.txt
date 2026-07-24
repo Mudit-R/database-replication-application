@@ -1,0 +1,172 @@
+
+# ============================================================
+# REPLICATION ENGINE — DEMO MESSAGES
+# ============================================================
+# HOW TO USE:
+#   Copy the JSON line (starts with {) and paste it at the
+#   kafka-console-producer > prompt, then press Enter.
+#
+#   Invoices (01-20) → topic: nosql-replication
+#   Orders   (21)    → topic: nosql-orders
+#
+# START INVOICE PRODUCER:
+#   docker exec -it replication-kafka kafka-console-producer --bootstrap-server localhost:9092 --topic nosql-replication
+#
+# START ORDER PRODUCER:
+#   docker exec -it replication-kafka kafka-console-producer --bootstrap-server localhost:9092 --topic nosql-orders
+# ============================================================
+
+
+# ------------------------------------------------------------
+# [01] SIMPLE DELETE
+# Deletes an invoice by UUID — no other fields needed.
+# Expect: row removed from db_invoices and logged in db_audit_log.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-VOID","action":"delete","type":"invoice"}}
+
+# ------------------------------------------------------------
+# [02] SIMPLE INSERT
+# Basic invoice with vendor, amount, and order reference.
+# Expect: new row in db_invoices + entry in db_audit_log.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-001","action":"insert","type":"invoice"},"invoice_amount":45000.0,"vendor":"Wipro Technologies","paid":false,"For_order":"ORD-WIP-001","child":{"for_order":"SUB-WIP-001"}}
+
+# ------------------------------------------------------------
+# [03] SIMPLE UPDATE
+# Updates INV-2024-001 — amount changes and paid = true.
+# Expect: existing row in db_invoices updated (no duplicate).
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-001","action":"update","type":"invoice"},"invoice_amount":48500.0,"vendor":"Wipro Technologies","paid":true,"For_order":"ORD-WIP-001","child":{"for_order":"SUB-WIP-001"}}
+
+# ------------------------------------------------------------
+# [04] NESTED OBJECT
+# Child contains a nested address object.
+# Expect: addr_city populated from child.address.city.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-002","action":"insert","type":"invoice"},"invoice_amount":125000.0,"vendor":"HCL Technologies","paid":true,"For_order":"ORD-HCL-001","child":{"for_order":"SUB-HCL-001","address":{"street":"Plot 3A, Sector 126","city":"Noida","country":"India"}}}
+
+# ------------------------------------------------------------
+# [05] ARRAY IN CHILD
+# Child has a tags array — engine ignores arrays and maps only scalar fields.
+# Expect: row inserted, tags field skipped cleanly.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-003","action":"insert","type":"invoice"},"invoice_amount":67500.0,"vendor":"Cognizant Technology Solutions","paid":false,"For_order":"ORD-COG-001","child":{"for_order":"SUB-COG-001","tags":["urgent","bulk-purchase","q4-budget"]}}
+
+# ------------------------------------------------------------
+# [06] COMPLEX CHILD — ADDRESS + CONTACTS
+# Child has address, tags, and a contacts array.
+# Expect: addr_city / addr_state / addr_district populated.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-004","action":"insert","type":"invoice"},"invoice_amount":210000.0,"vendor":"Infosys BPM Limited","paid":true,"For_order":"ORD-INF-001","child":{"for_order":"SUB-INF-001","tags":["premium","sla-gold"],"address":{"city":"Bengaluru","state":"Karnataka","district":"Bengaluru Urban"},"contacts":[{"name":"Priya Sharma","phone":"9876543210","role":"Account Manager"},{"name":"Rahul Verma","phone":"9123456789","role":"Finance Lead"}]}}
+
+# ------------------------------------------------------------
+# [07] SPECIAL CHARACTERS
+# Vendor name has quotes, ampersand, apostrophe, and slashes.
+# Expect: stored exactly as-is — engine handles escaping correctly.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-005","action":"insert","type":"invoice"},"invoice_amount":15750.0,"vendor":"O'Brien & Sons / \"Premium\" Supplies","paid":false,"For_order":"ORD-IT'S-A-DEAL/2024","child":{"for_order":"SUB-PREMIUM#001"}}
+
+# ------------------------------------------------------------
+# [08] MISSING FIELDS
+# Only header + amount, all other fields absent.
+# Expect: row inserted with NULLs for missing columns — no crash.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-PARTIAL","action":"insert","type":"invoice"},"invoice_amount":5000.0}
+
+# ------------------------------------------------------------
+# [09] LARGE DECIMAL
+# Invoice amount near max precision (99.9 million with 6 decimals).
+# Expect: stored with full precision, no rounding errors.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-ENT-001","action":"insert","type":"invoice"},"invoice_amount":99999999.999999,"vendor":"Tata Consultancy Services","paid":true,"For_order":"ORD-TCS-2024","child":{"for_order":"SUB-TCS-2024"}}
+
+# ------------------------------------------------------------
+# [10] ZERO AMOUNT
+# Invoice amount is exactly 0.00 (credit memo / placeholder).
+# Expect: stored as 0.000000 — zero is a valid value.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-CR-001","action":"insert","type":"invoice"},"invoice_amount":0.0,"vendor":"Reliance Retail","paid":false,"For_order":"ORD-CR-001","child":{"for_order":"SUB-CR-001"}}
+
+# ------------------------------------------------------------
+# [11] DELETE WITH EXTRA FIELDS
+# Delete action but payload has extra irrelevant fields.
+# Expect: row deleted, extra fields ignored cleanly.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-006","action":"delete","type":"invoice"},"invoice_amount":32000.0,"vendor":"Hexaware Technologies","cancellation_reason":"Duplicate entry","cancelled_by":"finance-team","audit_ref":{"system":"SAP","reference":"SAP-DEL-2024"}}
+
+# ------------------------------------------------------------
+# [12] UPDATE WITH NESTED METADATA
+# Update with a deeply nested metadata object in child.
+# Expect: scalar fields updated, metadata object ignored.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-007","action":"update","type":"invoice"},"invoice_amount":88000.0,"vendor":"Mphasis Limited","paid":true,"For_order":"ORD-MPH-001","child":{"for_order":"SUB-MPH-001","metadata":{"source":"mongodb","version":3,"last_sync":"2024-07-15"}}}
+
+# ------------------------------------------------------------
+# [13] UPPERCASE ACTION
+# Action field is "INSERT" (uppercase) instead of "insert".
+# Expect: engine normalizes case — row inserted successfully.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-008","action":"INSERT","type":"invoice"},"invoice_amount":43200.0,"vendor":"Tech Mahindra","paid":false,"For_order":"ORD-TM-001","child":{"for_order":"SUB-TM-001"}}
+
+# ------------------------------------------------------------
+# [14] UNICODE VALUES
+# Vendor name and order ref contain Japanese and special Unicode chars.
+# Expect: stored correctly (UTF-8 end-to-end).
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-INTL","action":"insert","type":"invoice"},"invoice_amount":95000.0,"vendor":"Müller & Partners — 株式会社","paid":true,"For_order":"ORD-₹-INTL-001","child":{"for_order":"SUB-INTL-001"}}
+
+# ------------------------------------------------------------
+# [15] FULLY COMPLEX PAYLOAD
+# Large payload with address, tags, contacts, AND extra ignored fields.
+# Expect: all mapped fields stored, all unmapped fields silently dropped.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-FULL","action":"insert","type":"invoice"},"invoice_amount":175000.0,"vendor":"Larsen & Toubro Technology Services","paid":true,"For_order":"ORD-LT-2024","child":{"for_order":"SUB-LT-2024","tags":["strategic-partner","annual-contract","tier-1"],"address":{"street":"L&T Technology Campus, Block A","city":"Pune","state":"Maharashtra","district":"Pune Urban","pin":411057},"contacts":[{"name":"Arun Mehta","role":"Procurement Head"},{"name":"Sneha Patel","role":"Finance Controller"}],"notes":"Annual contract renewal"},"extra_field_1":"ignored-by-engine","extra_field_2":9999,"extra_field_3":{"junk":true,"noise":"this field is never read"}}
+
+# ------------------------------------------------------------
+# [16] STRINGIFIED JSON AS FIELD VALUE
+# order_for and child.for_order are JSON strings-within-strings.
+# Expect: stored as-is (raw string), no double-parse.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-STR","action":"insert","type":"invoice"},"invoice_amount":27500.0,"vendor":"DataSync Corp","paid":true,"For_order":"{\"order_ref\":\"ORD-DS-001\",\"region\":\"south\"}","child":{"for_order":"{\"sub_ref\":\"SUB-DS-001\",\"priority\":1}"}}
+
+# ------------------------------------------------------------
+# [17] NESTED ADDRESS — MUMBAI
+# Tests city/state/district mapping from nested child.address.
+# Expect: addr_city=Mumbai, addr_state=Maharashtra, addr_district=Mumbai City.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-MUM","action":"insert","type":"invoice"},"invoice_amount":62000.0,"vendor":"Kotak Securities Ltd","paid":true,"For_order":"ORD-KOT-001","child":{"for_order":"SUB-KOT-001","address":{"city":"Mumbai","state":"Maharashtra","district":"Mumbai City"}}}
+
+# ------------------------------------------------------------
+# [18] NESTED ADDRESS — HYDERABAD
+# Same as above, different city. Tests idempotent mapping logic.
+# Expect: addr_city=Hyderabad, addr_state=Telangana, addr_district=Rangareddy.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-HYD","action":"insert","type":"invoice"},"invoice_amount":54000.0,"vendor":"Cyient Limited","paid":false,"For_order":"ORD-CYI-001","child":{"for_order":"SUB-CYI-001","address":{"city":"Hyderabad","state":"Telangana","district":"Rangareddy"}}}
+
+# ------------------------------------------------------------
+# [19] ENTERPRISE VENDOR — HIGH AMOUNT
+# ₹50 lakh invoice from Reliance Industries.
+# Expect: large decimal stored correctly, address fields mapped.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-RIL","action":"insert","type":"invoice"},"invoice_amount":5000000.0,"vendor":"Reliance Industries Limited","vendor_type":"enterprise","paid":true,"For_order":"ORD-RIL-ANNUAL-2024","child":{"for_order":"SUB-RIL-2024","address":{"city":"Mumbai","state":"Maharashtra","district":"Mumbai Suburban"}}}
+
+# ------------------------------------------------------------
+# [20] SMALL BUSINESS VENDOR — LOW AMOUNT
+# ₹8,500 from a small supplier with address.
+# Expect: stored correctly — engine works for all invoice sizes.
+# ------------------------------------------------------------
+{"header":{"uuid":"INV-2024-SMB","action":"insert","type":"invoice"},"invoice_amount":8500.0,"vendor":"Green Office Supplies","vendor_type":"small-business","paid":false,"For_order":"ORD-GOS-001","child":{"for_order":"SUB-GOS-001","address":{"city":"Jaipur","state":"Rajasthan","district":"Jaipur Urban"}}}
+
+
+# ============================================================
+# SWITCH TO ORDER PRODUCER BEFORE PASTING BELOW:
+#   docker exec -it replication-kafka kafka-console-producer --bootstrap-server localhost:9092 --topic nosql-orders
+# ============================================================
+
+# ------------------------------------------------------------
+# [21] ORDER WITH LINE ITEMS (FAN-OUT)
+# 1 order message fans out into: 1 row in orders + 3 rows in order_items.
+# This is the key feature — array fan-out replication.
+# Expect: orders has 1 row (ORD-ECOM-2024), order_items has 3 rows.
+# ------------------------------------------------------------
+{"header":{"uuid":"ORD-ECOM-2024","action":"insert","type":"order"},"customer_name":"Amit Sharma","total_amount":84997.0,"total_items":3,"status":"confirmed","items":[{"sku":"DELL-LAPTOP-15","qty":1,"price":75000.0},{"sku":"LOGITECH-MX3","qty":2,"price":4999.0},{"sku":"USB-C-HUB-7P","qty":1,"price":1999.0}]}

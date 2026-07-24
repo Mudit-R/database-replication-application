@@ -1,0 +1,58 @@
+# =============================================================================
+# invoices.yml — Invoice schema mappings
+#
+# Handles messages from topic: nosql-replication where header.type = "invoice"
+# A single invoice message writes to BOTH db_invoices and db_audit_log.
+# =============================================================================
+
+envelope:
+  operation-path: "header.action"   # field that carries insert/update/delete
+
+target-schemas:
+
+  # Schema 1: Main invoice table — one row per message
+  - table-name: "db_invoices"
+    userkey-path: "header.uuid"
+    filter-topic: "nosql-replication"
+    filter-path:  "header.type"
+    filter-value: "invoice"
+    required-paths:
+      - "header.uuid"
+      - "invoice_amount"
+      - "vendor"
+    invoice_id:
+      path: "header.uuid"
+    invoiceamount:
+      path: "invoice_amount"
+    vendor_name:
+      path: "vendor"
+    paid_paise:
+      path: "paid"
+    order_for:
+      path: "For_order"
+    sub_order_ref:
+      path: "child.for_order"
+    addr_city:
+      path: "child.address.city"
+    addr_state:
+      path: "child.address.state"
+    addr_district:
+      path: "child.address.district"
+
+  # Schema 2: Audit log — one row per invoice message
+  - table-name: "db_audit_log"
+    userkey-path: "header.uuid"
+    filter-topic: "nosql-replication"
+    filter-path:  "header.type"
+    filter-value: "invoice"
+    required-paths:
+      - "header.uuid"
+      - "invoice_amount"
+    log_id:
+      path: "header.uuid"
+    action:
+      path: "header.action"
+    amount:
+      path: "invoice_amount"
+    created_by:
+      path: "vendor"

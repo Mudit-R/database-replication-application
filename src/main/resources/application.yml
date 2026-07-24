@@ -17,15 +17,16 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
 
-  # ── Load the schema mapping file separately ───────────────────────────────────
-  config:
-    import: "classpath:mapping.yml"
-
-# ── Kafka consumer settings (topics are dynamically derived from mapping.yml) ─
+# ── Kafka consumer settings ───────────────────────────────────────────────────
 app:
   kafka:
     group-id: replication-consumer-group
     concurrency: 3
+
+  # ── Dynamic mapping directory ─────────────────────────────────────────────────
+  # Drop any *.yml schema file here and it will be loaded automatically.
+  # No changes to this file or any Java code required for new domains.
+  mapping-dir: "./mappings"
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging:

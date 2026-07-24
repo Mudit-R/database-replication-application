@@ -1,26 +1,22 @@
 package com.replication.app;
 
-import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * Binds the "app.replication.*" section of mapping.yml (imported by application.yml).
+ * Holds the merged replication configuration loaded by MappingLoader at startup.
  *
- * targetSchemas is a list so that one incoming Kafka message can be applied
- * to multiple RDBMS tables. Each entry in the list is an independent
- * target-schema block with its own table-name, userkey-path, and column
- * mappings.
- *
- * It also dynamically resolves the list of Kafka topics to listen to
- * by extracting all unique "filter-topic" declarations from target-schemas.
+ * MappingLoader scans the configured mappings directory, reads all *.yml files,
+ * and populates this bean with the combined set of targetSchemas and the envelope
+ * definition. No longer bound via @ConfigurationProperties — data is injected
+ * programmatically so that schemas can come from any number of external files.
  */
 @Component("replicationProperties")
-@ConfigurationProperties(prefix = "app.replication")
 public class ReplicationProperties {
 
     private Envelope envelope;
@@ -43,12 +39,13 @@ public class ReplicationProperties {
     }
 
     /**
-     * Dynamically extracts distinct, non-empty filter-topic values from target-schemas.
-     * Used by @KafkaListener in ReplicationConsumer to automatically subscribe to all schema topics.
+     * Dynamically extracts distinct, non-empty filter-topic values from all loaded schemas.
+     * Used by @KafkaListener in ReplicationConsumer to subscribe to all required topics
+     * without any manual configuration.
      */
     public List<String> getTopics() {
-        if (targetSchemas == null) {
-            return List.of();
+        if (targetSchemas == null || targetSchemas.isEmpty()) {
+            return Collections.emptyList();
         }
         return targetSchemas.stream()
                 .map(schema -> (String) schema.get("filter-topic"))

@@ -88,7 +88,7 @@ public class ReplicationConsumer {
         if (filterTopic != null && !filterTopic.equalsIgnoreCase(topic)) {
             return false;
         }
-        
+
         String filterPath  = (String) schema.get("filter-path");
         String filterValue = (String) schema.get("filter-value");
         if (filterPath != null && filterValue != null) {
@@ -98,17 +98,26 @@ public class ReplicationConsumer {
             }
         }
 
-        // Format Recognition layer: validate presence of required paths
-        Object reqObj = schema.get("required-paths");
-        if (reqObj != null) {
-            java.util.Collection<?> paths = (reqObj instanceof Map) 
-                    ? ((Map<?, ?>) reqObj).values() 
-                    : (reqObj instanceof List ? (List<?>) reqObj : java.util.Collections.emptyList());
-            for (Object pathObj : paths) {
-                String path = String.valueOf(pathObj);
-                if (SqlBuilder.resolvePath(json, path) == null) {
-                    log.info("Schema '{}' skipped — required path '{}' is missing or null", schema.get("table-name"), path);
-                    return false;
+        // Required-paths validation — skipped for delete operations because a delete
+        // only carries the primary key (e.g. header.uuid) and no data fields.
+        String operationPath = properties.getEnvelope().getOperationPath();
+        Object operationVal  = SqlBuilder.resolvePath(json, operationPath);
+        boolean isDelete = operationVal != null
+                && "delete".equalsIgnoreCase(String.valueOf(operationVal));
+
+        if (!isDelete) {
+            Object reqObj = schema.get("required-paths");
+            if (reqObj != null) {
+                java.util.Collection<?> paths = (reqObj instanceof Map)
+                        ? ((Map<?, ?>) reqObj).values()
+                        : (reqObj instanceof List ? (List<?>) reqObj : java.util.Collections.emptyList());
+                for (Object pathObj : paths) {
+                    String path = String.valueOf(pathObj);
+                    if (SqlBuilder.resolvePath(json, path) == null) {
+                        log.info("Schema '{}' skipped — required path '{}' is missing or null",
+                                schema.get("table-name"), path);
+                        return false;
+                    }
                 }
             }
         }
